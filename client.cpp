@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 using namespace std;
 
@@ -19,9 +20,9 @@ private:
     bool r_path_set = false;
     bool l_path_set = false;
 public:
-    string command;
-    string remote_path;
-    string local_path;
+    string command     = "";
+    string remote_path = "";
+    string local_path  = "";
     Arguments(int argc, char **argv);
 };
 
@@ -67,6 +68,9 @@ Arguments::Arguments(int argc, char **argv) {
     if (this->command == "put" and l_path_set == false) {
         throw invalid_argument("Set local path when using put\n");
     }
+    else if (this->cmd_set == false or this->r_path_set == false) {
+        throw invalid_argument("Set both command and remote path\n");
+    }
 }
 
 int main(int argc, char **argv) {
@@ -75,6 +79,27 @@ int main(int argc, char **argv) {
         args = new Arguments(argc, argv);
     } catch (invalid_argument& e) {
         cerr << e.what();
+        return 1; // TODO
     }
-    cout << args->command << " " << args->remote_path << " " << args->local_path << "\n";
+
+    hostent *server = gethostbyname(args->remote_path.c_str());
+    if (server == NULL) {
+        cerr << "Could not connect to server\n";
+        return 1; // TODO
+    }
+    int sockcl,
+        len;
+    struct sockaddr_in6 serv_addr;
+    sockcl = socket(AF_INET, SOCK_STREAM, 0);
+    serv_addr.sin6_family = AF_INET6; //TODO
+    if (sockcl <= 0) {
+        cerr << "Unable to create socket\n";
+        return 1; //TODO
+    }
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin6_addr, server->h_length);
+//    if (connect(sockcl, ));
+
+
+    return 0;
 }

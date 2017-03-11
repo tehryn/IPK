@@ -51,8 +51,7 @@ int main(int argc, char **argv) {
     const int SIZE = 1024;
     int sockfd,              // File descriptor
         sockcomm,            // File descriptor
-        portno = args->port, // Port number
-        len;                 // Contains the number of characters read or written.
+        portno = args->port; // Port number
     socklen_t clilen;        // Size of clien's addres
     char      buffer[SIZE] = {};
 
@@ -69,7 +68,7 @@ int main(int argc, char **argv) {
 
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin6_family = AF_INET6;
-    serv_addr.sin6_addr = in6addr_any;;
+    serv_addr.sin6_addr = in6addr_any;
     serv_addr.sin6_port = htons(portno);
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         cerr << "Unable to bind\n";
