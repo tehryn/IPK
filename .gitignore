@@ -28,5 +28,5 @@
 *.out
 *.app
 
-frest
-frestd
+ftrest
+ftrestd
