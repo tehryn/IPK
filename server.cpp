@@ -19,7 +19,7 @@ private:
     bool set_port        = false;
 public:
     string   root_folder = ".";
-    unsigned port        = 80;
+    unsigned port        = 6677;
     Arguments(int argc, char **argv);
 };
 
@@ -49,17 +49,21 @@ int main(int argc, char **argv) {
         return -1; // TODO
     }
     const int SIZE = 1024;
-    int sockfd,              // File descriptor
-        sockcomm,            // File descriptor
+    int sockfd,              // Soclet descriptor
+        sockcomm,            // Socket descriptor
         portno = args->port; // Port number
     socklen_t clilen;        // Size of clien's addres
     char      buffer[SIZE] = {};
 
-    struct sockaddr_in6 serv_addr = {},
+    struct sockaddr_in serv_addr = {},
                         cli_addr  = {};
 
+    /*
+    struct sockaddr_in6 serv_addr = {},
+                        cli_addr  = {};
+     */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd <= 0) {
+    if (sockfd < 0) {
         cerr << "Could not open socket\n";
         return -1; // TODO
     }
@@ -67,9 +71,15 @@ int main(int argc, char **argv) {
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
 
     bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family      = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port        = htons(portno);
+
+    /*
     serv_addr.sin6_family = AF_INET6;
     serv_addr.sin6_addr = in6addr_any;
     serv_addr.sin6_port = htons(portno);
+    */
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         cerr << "Unable to bind\n";
         return -1; // TODO
@@ -81,10 +91,15 @@ int main(int argc, char **argv) {
     }
     while (true) {
         clilen = sizeof(cli_addr);
-        sockcomm = accept (sockfd, (struct sockaddr *) &cli_addr, &clilen);
+        sockcomm = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
         if (sockcomm > 0) {
             while (recv(sockcomm, buffer, SIZE, 0) > 0) {
-                send(sockcomm, buffer, strlen(buffer), 0);
+                cout << "sending message:\n" << buffer << "\n";
+                if (send(sockcomm, buffer, strlen(buffer), 0) < 0) {
+                    cerr << "Unable to send message.\n";
+                    return 1;
+                }
+                bzero((char *) buffer, SIZE);
             }
         }
         close(sockcomm);
@@ -102,5 +117,6 @@ int main(int argc, char **argv) {
         }*/
 
     }
+    delete args;
     return 0;
 }
