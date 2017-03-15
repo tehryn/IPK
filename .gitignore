@@ -28,5 +28,6 @@
 *.out
 *.app
 
+test.txt
 ftrest
 ftrestd

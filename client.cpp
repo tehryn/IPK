@@ -3,6 +3,7 @@
 #include <vector>
 #include <stdexcept>
 #include <fstream>
+#include <algorithm>
 
 //#include <stdio.h>
 #include <time.h>
@@ -33,7 +34,7 @@ private:
 public:
     vector<char> *content = nullptr;
     size_t   file_len     = 0;
-    int      port         = 80;
+    int      port         = 6677;
     string   protocol     = "http://"; // TODO a tohle mi je k čemu???
     string   server       = "";
     string   command      = "";
@@ -50,7 +51,7 @@ Arguments::Arguments(int argc, char **argv) {
         if (this->cmd_set == false) {
             this->cmd_set = true;
             if (args[i] == "del") {
-                this->command = "DEL";
+                this->command = "DELETE";
                 file_folder   = "?type=file";
             }
             else if (args[i] == "get") {
@@ -62,15 +63,15 @@ Arguments::Arguments(int argc, char **argv) {
                 file_folder   = "?type=file";
             }
             else if (args[i] == "lst") {
-                this->command = "LST";
+                this->command = "GET";
                 file_folder   = "?type=folder";
             }
             else if (args[i] == "mkd") {
-                this->command = "MKD";
+                this->command = "PUT";
                 file_folder   = "?type=folder";
             }
             else if (args[i] == "rmd") {
-                this->command = "RMD";
+                this->command = "DELETE";
                 file_folder   = "?type=folder";
             }
             else {
@@ -80,6 +81,10 @@ Arguments::Arguments(int argc, char **argv) {
         else if (this->r_path_set == false) {
             this->r_path_set = true;
             this->remote_path = args[i];
+            size_t test = 0;
+            while (( test = this->remote_path.find(" ")) != this->remote_path.npos ) {
+                this->remote_path.replace(test, 1, "%20");
+            }
         }
         else if (this->l_path_set == false) {
             this->l_path_set = true;
@@ -89,8 +94,8 @@ Arguments::Arguments(int argc, char **argv) {
             throw invalid_argument("Too many arguments\n");
         }
     }
-    if (this->command == "PUT" and l_path_set == false) {
-        throw invalid_argument("Set local path when using put\n");
+    if (this->command == "PUT" and this->file_folder == "?type=file" and l_path_set == false) {
+        throw invalid_argument("Set local path when using put or mkd\n");
     }
     else if (this->cmd_set == false or this->r_path_set == false) {
         throw invalid_argument("Set both command and remote path\n");
@@ -110,8 +115,7 @@ Arguments::Arguments(int argc, char **argv) {
     }
     size_t index3 = this->remote_path.find(':', index);
     if (index3 > index2) {
-        this->port = 80;
-        cerr << "WARNING: No port specified, using 80.\n";
+        this->port = 6677;
     }
     else {
         this->port = stoi(this->remote_path.substr(index3+1, index2));
@@ -130,7 +134,7 @@ Arguments::Arguments(int argc, char **argv) {
     if (this->file_folder == "?type=file" && this->remote_path[this->remote_path.size()-1] == '/') {
         throw invalid_argument("Unable to use file method on directory\n");
     }
-    if (this->command == "PUT") {
+    if (this->command == "PUT" && this->file_folder == "?type=file") {
         ifstream file(this->local_path, ios::binary);
         file.seekg(0, ios::end);
         this->file_len = file.tellg();
@@ -156,11 +160,11 @@ string http_request(Arguments *args) {
     char buf[128];
     time_t now = time(0);
     struct tm tm = *gmtime(&now);
-    strftime(buf, 256, "Date: %a, %d %b %Y %H:%M:%S %Z\r\n", &tm);
+    strftime(buf, 128, "Date: %a, %d %b %Y %H:%M:%S %Z\r\n", &tm);
     request += buf;
-    request += "Accept-Encoding: identity, gzip, deflate\r\n";
-    request += "Accept: text/html\r\n";
-    if (args->command == "PUT") {
+    request += "Accept-Encoding: identity\r\n";
+    request += "Accept: application/json\r\n";
+    if (args->command == "PUT" && args->file_folder == "?type=file") {
         request += "Content-Type: application/octet-stream\r\n";
         request += "Content-Length: " + to_string(args->file_len) + "\r\n";
     }
@@ -175,6 +179,11 @@ string http_request(Arguments *args) {
 
 int main(int argc, char **argv) {
     Arguments *args;
+    const size_t SIZE = 256;
+    char buffer[SIZE] = {0,};
+    int sockcl;
+    struct sockaddr_in serv_addr;
+
     try {
         args = new Arguments(argc, argv);
     } catch (invalid_argument& e) {
@@ -193,11 +202,6 @@ int main(int argc, char **argv) {
         delete args;
         return 1; // TODO
     }
-
-    const size_t SIZE = 256;
-    char buffer[SIZE] = {0,};
-    int sockcl;
-    struct sockaddr_in serv_addr;
     sockcl = socket(AF_INET, SOCK_STREAM, 0);
     if (sockcl <= 0) {
         cerr << "Unable to create socket\n";
