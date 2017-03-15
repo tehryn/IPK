@@ -95,19 +95,18 @@ public:
 
 void Request::ld_data(int fd) {
     char buffer[256];
-    DEBUG_LINE("Reading socket:");
+    DEBUG_LINE("Reading socket");
     unsigned len;
     while ((len = recv(fd, buffer, 256, 0)) > 0) {
         this->byte_read += len;
         for (unsigned i = 0; i < len; i++) {
             this->content.push_back(buffer[i]);
-            DEBUG_INLINE(buffer[i]);
         }
         if (this->set_head(this->content) == false) {
             break;
         }
     }
-    DEBUG_LINE("--END--");
+    DEBUG_LINE("Reading done");
     if (this->proc_ld_data() == true) {
         throw new invalid_argument("Socket has invalid header!");
     }
@@ -119,6 +118,26 @@ void Request::ld_data(int fd) {
     DEBUG_LINE(this->head);
     DEBUG_INLINE("Content-Length: ");
     DEBUG_LINE(to_string(this->content_len));
+    byte_read -= this->content_start;
+    this->content = this->content.substr(this->content_start);
+    DEBUG_INLINE("Bytes read from contentent: ");
+    DEBUG_LINE(to_string(this->byte_read));
+    DEBUG_LINE("Current content:");
+    DEBUG_INLINE(this->content);
+    DEBUG_LINE("--END--");
+    DEBUG_INLINE("Lenght of content: ");
+    DEBUG_LINE(to_string(this->content.size()));
+    DEBUG_LINE("Loading rest of socket");
+    while (this->byte_read < this->content_len) {
+        len = recv(fd, buffer, 256, 0);
+        this->byte_read += len;
+        for (unsigned i = 0; i < len; i++) {
+            this->content.push_back(buffer[i]);
+        }
+    }
+    DEBUG_LINE("Loading done");
+    DEBUG_INLINE("Lenght of content: ");
+    DEBUG_LINE(to_string(this->content.size()));
 }
 
 bool Request::proc_ld_data() {
