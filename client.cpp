@@ -136,6 +136,9 @@ Arguments::Arguments(int argc, char **argv) {
     }
     if (this->command == "PUT" && this->file_folder == "?type=file") {
         ifstream file(this->local_path, ios::binary);
+        if (!file.is_open()) {
+            throw invalid_argument("No such file\n");
+        }
         file.seekg(0, ios::end);
         this->file_len = file.tellg();
         file.seekg(0, ios::beg);

@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 #ifdef DEBUG
 #define DEBUG_LINE(x)   (cout << x << endl)
@@ -230,8 +231,12 @@ string put_on_folder(string path) {
     if (stat(path.c_str(), &st) == -1) {
         DEBUG_INLINE("Creating directory: ");
         DEBUG_LINE(path.c_str());
-        mkdir(path.c_str(), 0700);
-        message = "200 OK";
+        if (mkdir(path.c_str(), 0700) < 0) {
+            message = "400 Bad Request";
+        }
+        else {
+            message = "200 OK";
+        }
     }
     else {
         DEBUG_INLINE("Directory failed to create: ");
@@ -241,8 +246,71 @@ string put_on_folder(string path) {
     return message;
 }
 
+string get_on_foleder (string root_path, vector<char> **content) {
+    string message = "";
+    DIR *dir;
+    struct dirent *ent;
+    *content = new vector<char>(0);
+    if ((dir = opendir (root_path.c_str())) != nullptr) {
+        unsigned size = 0;
+        while ((ent = readdir (dir)) != nullptr) {
+            size = strlen(ent->d_name);
+            for (unsigned i = 0; i<size; i++) {
+                (*content)->push_back(ent->d_name[i]);
+            }
+            (*content)->push_back('\t'); // TODO cim oddeluje ls???
+        }
+        message = "200 OK";
+    }
+    else {
+        message = "400 Bad Request";
+    }
+    return message;
+}
+
+string get_on_file (string path, vector<char> **content) {
+    string message = "";
+    size_t len;
+    ifstream file(path.c_str(), ios::binary);
+    if (file.is_open()) {
+        file.seekg(0, ios::end);
+        len = file.tellg();
+        file.seekg(0, ios::beg);
+        *content = new vector<char>(len);
+        file.read((char*) (&content[0][0][0]), len);
+        message = "200 OK";
+    }
+    else {
+        message = "400 Bad Request";
+    }
+    return message;
+}
+
+string del_on_file(string path) {
+    string message = "";
+    if (unlink(path.c_str()) < 0) {
+        message = "400 Bad Request";
+    }
+    else {
+        message = "200 OK";
+    }
+    return message;
+}
+
+string del_on_folder(string path) {
+    string message = "";
+    if (rmdir(path.c_str()) < 0) {
+        message = "400 Bad Request";
+    }
+    else {
+        message = "200 OK";
+    }
+    return message;
+}
+
 string create_response(Request *req, string root_path){
     string message;
+    vector<char> *content = nullptr;
     string path = root_path + req->path;
     if (req->command == "PUT") {
         if (req->is_file) {
@@ -254,22 +322,22 @@ string create_response(Request *req, string root_path){
     }
     else if (req->command == "GET") {
         if (req->is_file) {
-
+            message = get_on_file(path, &content);
         }
         else {
-
+            message = get_on_foleder(path, &content);
         }
     }
     else if (req->command == "DELETE") {
         if (req->is_file) {
-
+            message = del_on_file(path);
         }
         else {
-
+            message = del_on_folder(path);
         }
     }
     else {
-
+        message = "400 Bad Request";
     }
     return message;
 }
