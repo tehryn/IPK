@@ -15,8 +15,8 @@
 #include <dirent.h>
 
 #ifdef DEBUG
-#define DEBUG_LINE(x)   (cout << x << endl)
-#define DEBUG_INLINE(x) (cout << x)
+#define DEBUG_LINE(x)   (cout << (x) << endl)
+#define DEBUG_INLINE(x) (cout << (x))
 #else
 #define DEBUG_LINE(x) ;
 #define DEBUG_INLINE(x) ;
@@ -133,7 +133,7 @@ void Request::ld_data(int fd) {
     DEBUG_LINE("Reading done");
 
     if (this->proc_ld_data() == true) {
-        throw new invalid_argument("Socket has invalid header!");
+        throw new invalid_argument("ERROR: Socket has invalid header!");
     }
 
     DEBUG_INLINE("Command: ");
@@ -200,11 +200,19 @@ Arguments::Arguments(int argc, char **argv) {
              this->port = stoi(args[++i]);
         }
         else {
-            throw invalid_argument("Arguments of program are invalid\n");
+            throw invalid_argument("ERROR: Arguments of program are invalid");
         }
     }
 }
+/*
+"Not a file." když REMOTE-PATH ukazuje na soubor, ale je použita operace del,
+get, put
 
+"File not found." když REMOTE-PATH neukazuje na žádny existující objekt při
+použití operace del, get, put
+
+"Unknown error." pro ostatní chyby.
+*/
 string put_on_file(Request *req, string path) {
     string message = "";
     ofstream fout(path, ios::binary);
@@ -227,21 +235,22 @@ string put_on_folder(string path) {
     struct stat st;
     memset(&st, 0, sizeof(struct stat));
     string message;
-    DEBUG_LINE("Checkinf if directory already exists");
-    if (stat(path.c_str(), &st) == -1) {
-        DEBUG_INLINE("Creating directory: ");
-        DEBUG_LINE(path.c_str());
-        if (mkdir(path.c_str(), 0700) < 0) {
-            message = "400 Bad Request";
+    if (mkdir(path.c_str(), 0700) < 0) {
+        if (errno == ENOENT) {
+            message = "Directory not found.";
+        }
+        else if (errno == ENOTDIR) {
+            message =  "Not a directory.";
+        }
+        else if (errno == EEXIST) {
+            message =  "Already exists.";
         }
         else {
-            message = "200 OK";
+            message = "Unknown error.";
         }
     }
     else {
-        DEBUG_INLINE("Directory failed to create: ");
-        DEBUG_LINE(path.c_str());
-        message = "400 Bad Request";
+        message = "200 OK";
     }
     return message;
 }
@@ -251,23 +260,41 @@ string get_on_foleder (string root_path, vector<char> **content) {
     DIR *dir;
     struct dirent *ent;
     *content = new vector<char>(0);
-    if ((dir = opendir (root_path.c_str())) != nullptr) {
+    if ((dir = opendir(root_path.c_str())) != nullptr) {
         unsigned size = 0;
-        while ((ent = readdir (dir)) != nullptr) {
+        while ((ent = readdir(dir)) != nullptr) {
+            if (ent->d_name[0] == '.') {
+                continue;
+            }
             size = strlen(ent->d_name);
             for (unsigned i = 0; i<size; i++) {
                 (*content)->push_back(ent->d_name[i]);
             }
-            (*content)->push_back('\t'); // TODO cim oddeluje ls???
+            (*content)->push_back('\n');
         }
         message = "200 OK";
     }
+    else if (errno == ENOENT){
+        message = "Directory not found.";
+    }
+    else if (errno == ENOTDIR) {
+        message = "Not a directory.";
+    }
     else {
-        message = "400 Bad Request";
+        message = "Unknown error.";
     }
     return message;
 }
 
+/*
+"Not a file." když REMOTE-PATH ukazuje na soubor, ale je použita operace del,
+get, put
+
+"File not found." když REMOTE-PATH neukazuje na žádny existující objekt při
+použití operace del, get, put
+
+"Unknown error." pro ostatní chyby.
+*/
 string get_on_file (string path, vector<char> **content) {
     string message = "";
     size_t len;
@@ -281,18 +308,24 @@ string get_on_file (string path, vector<char> **content) {
         message = "200 OK";
     }
     else {
-        message = "400 Bad Request";
+        message = "File not found.";
     }
     return message;
 }
 
 string del_on_file(string path) {
     string message = "";
-    if (unlink(path.c_str()) < 0) {
-        message = "400 Bad Request";
+    if (unlink(path.c_str()) == 0) {
+        message = "200 OK";
+    }
+    else if (errno == ENOENT || errno == ENOTDIR){
+        message = "File not found.";
+    }
+    else if (errno == EISDIR) {
+        message = "Not a file.";
     }
     else {
-        message = "200 OK";
+        message = "Unknown error.";
     }
     return message;
 }
@@ -302,44 +335,123 @@ string del_on_folder(string path) {
     if (rmdir(path.c_str()) < 0) {
         message = "400 Bad Request";
     }
+    else if (errno == ENOENT){
+        message = "Directory not found.";
+    }
+    else if (errno == ENOTDIR) {
+        message = "Not a directory.";
+    }
+    else if (errno == ENOTEMPTY) {
+        message = "Directory not empty.";
+    }
     else {
-        message = "200 OK";
+        message = "Unknown error.";
     }
     return message;
 }
 
 string create_response(Request *req, string root_path){
     string message;
+    string error = "";
+    char buf[128];
+    time_t now = time(0);
+    struct tm tm = *localtime(&now);
+    strftime(buf, 128, "\r\nDate: %a, %d %b %Y %H:%M:%S %Z\r\n", &tm);
+    string response = buf;
     vector<char> *content = nullptr;
     string path = root_path + req->path;
     if (req->command == "PUT") {
         if (req->is_file) {
             message = put_on_file(req, path);
+            if (message != "200 OK") {
+                error  = "{\n\t\"Error\":\"";
+                error += message;
+                error += "\"\n}";
+            }
         }
         else {
             message = put_on_folder(path);
+            if (message != "200 OK") {
+                if (message != "200 OK") {
+                    error  = "{\n\t\"Error\":\"";
+                    error += message;
+                    error += "\"\n}";
+                }
+            }
         }
     }
     else if (req->command == "GET") {
         if (req->is_file) {
             message = get_on_file(path, &content);
+            if (message != "200 OK") {
+                error  = "{\n\t\"Error\":\"";
+                error += message;
+                error += "\"\n}";
+            }
         }
         else {
             message = get_on_foleder(path, &content);
+            if (message != "200 OK") {
+                error  = "{\n\t\"Error\":\"";
+                error += message;
+                error += "\"\n}";
+            }
         }
     }
     else if (req->command == "DELETE") {
         if (req->is_file) {
             message = del_on_file(path);
+            if (message != "200 OK") {
+                error  = "{\n\t\"Error\":\"";
+                error += message;
+                error += "\"\n}";
+            }
         }
         else {
             message = del_on_folder(path);
+            if (message != "200 OK") {
+                error  = "{\n\t\"Error\":\"";
+                error += message;
+                error += "\"\n}";
+            }
         }
     }
     else {
-        message = "400 Bad Request";
+        message = "";
+        return message;
     }
-    return message;
+    if (error != "") {
+        if (error.find("not found") == error.npos) {
+            message = "400 Bad Request";
+        }
+        else {
+            message = "404 Not Found";
+        }
+    }
+    if (req->command == "GET") {
+        response += "Content-Type: application/octet-stream\r\n";
+    }
+    else {
+        response += "Content-Type: application/json\r\n";
+    }
+    response += "Content-Length: ";
+    if (content != nullptr) {
+        response += to_string((content->size() + error.size()));
+    }
+    else {
+        response += to_string(error.size()); // Content-Length 0
+    }
+    response += "\r\nContent-Encoding: identity\r\n";
+    response = message + response + "\r\n";
+    if (content != nullptr) {
+//        response.resize(response.size()+content->size()); // mno.. napad dobry ale ustrelil jsem si nohu
+        for (size_t i = 0; i < content->size(); i++) {
+            response += content[0][i];
+        }
+        delete content;
+    }
+    response += error;
+    return response;
 }
 
 int main(int argc, char **argv) {
@@ -363,8 +475,8 @@ int main(int argc, char **argv) {
      */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        cerr << "Could not open socket\n";
-        return -1; // TODO
+        cerr << "ERROR: Could not open socket\n";
+        return 1; // TODO
     }
     int optval = 1; // TODO k cemu to je?
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
@@ -380,27 +492,32 @@ int main(int argc, char **argv) {
     serv_addr.sin6_port = htons(portno);
     */
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        cerr << "Unable to bind\n";
-        return -1; // TODO
+        cerr << "ERROR: Unable to bind\n";
+        return 1; // TODO
     }
 
     if (listen(sockfd, 1) < 0) {
-        cerr << "Unable to listen\n";
-        return -1;
+        cerr << "ERROR: Unable to listen\n";
+        return 1;
     }
-    Request req;
+    Request *req;
     string message;
     while (true) {
+        req = new Request;
         clilen = sizeof(cli_addr);
         sockcomm = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
         if (sockcomm > 0) {
-            req.ld_data(sockcomm);
-            message = create_response(&req, args->root_folder);
+            req->ld_data(sockcomm);
+            message = create_response(req, args->root_folder);
+            DEBUG_LINE("Sending response: ");
+            DEBUG_INLINE(message.data());
+            DEBUG_LINE("--END--");
             if (send(sockcomm, message.data(), message.size(), 0) < 0) {
-                cerr << "Unable to send message.\n";
+                cerr << "ERROR: Unable to send message.\n";
                 return 1;
             }
         }
+        delete req;
         close(sockcomm);
     }
     delete args;
