@@ -15,58 +15,101 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
-#ifdef DEBUG
-#define DEBUG_LINE(x)   (cout << (x) << endl)
-#define DEBUG_INLINE(x) (cout << (x))
-#else
-#define DEBUG_LINE(x) ;
-#define DEBUG_INLINE(x) ;
-#endif
-
 using namespace std;
 
+/**
+ * Class that stores program setings
+ */
 class Arguments {
 private:
+    /// Identifies if root folder was set.
     bool set_root_folder = false;
+    /// Identifies if port number was set.
     bool set_port        = false;
 public:
+    /// Path to root folder
     string   root_folder = ".";
+    /// Port number
     unsigned port        = 6677;
+    /**
+     * Construct an Argument class. Throw invalid_argument exception on error.
+     * @param argc Number of arguments.
+     * @param argv Array of arguments.
+     */
     Arguments(int argc, char **argv);
 };
 
+/**
+ * Class for parsing Requests
+ */
 class Request {
 private:
+    /// Index where content of message stars.
     size_t content_start = 1;
+    /// Number of bytes that was read from content.
     size_t byte_read     = 0;
+    /**
+     * Retrieve request header.
+     * @param  src String where header is.
+     * @return     True when there is no header, false on succes.
+     */
     bool set_head(string src);
+    /**
+     * Retrieve command from HTTP header.
+     * @param  src HTTP header
+     * @return     true on error, false on succes.
+     */
     bool set_command(string src);
+    /**
+     * Retrieve path to file/directory from HTTP header
+     * @param  src HTTP header
+     * @return     true on succes, false on error.
+     */
     bool set_path(string src);
+    /**
+     * Retrieve value of Content-Length from HTTP header.
+     * @param  src HTTP header
+     * @return     true on error, false on succes.
+     */
     bool set_len(string src);
+    /**
+     * Procces loaded data.
+     * @return true when data are invalid, false on succes.
+     */
     bool proc_ld_data();
 public:
+    /// Stores value of command (GET, PUT or DELETE).
     string command       = "";
+    /// Stores value of path to file/directory.
     string path          = "";
+    /// Stores HTTP head.
     string head          = "";
+    /// Lenght of content.
     size_t content_len   =  0;
+    /// Content itself.
     string content       = "";
+    /// Tells if we are working with file (true) or folder (false).
     bool   is_file       = false;
+    /**
+     * Loads data from socket.
+     * @param fd Socket descriptor.
+     */
     void ld_data(int fd);
 };
 
 bool Request::set_head(string src) {
-    this->content_start = src.find("\r\n\r\n");
+    this->content_start = src.find("\r\n\r\n"); // end of http head
     if (this->content_start != src.npos) {
         this->content_start += 4;
-        this->head = src.substr(0, this->content_start);
+        this->head = src.substr(0, this->content_start); // stores head
         return false;
     }
     return true;
 }
 
 bool Request::set_command(string src) {
-    size_t idx = src.find(' ');
-    if (idx != src.npos) {
+    size_t idx = src.find(' '); // command is first part of head, so space
+    if (idx != src.npos) {      // seperates it from rest of head.
         this->command = src.substr(0, idx);
         return false;
     }
@@ -80,11 +123,7 @@ bool Request::set_path(string src) {
         size_t idx2 = src.find(' ', idx);
         if (idx2 != src.npos) {
             this->path = src.substr(idx, idx2 - idx);
-            size_t test = 0;
-            while (( test = this->path.find("%20")) != this->path.npos ) {
-                this->path.replace(test, 3, " ");
-            }
-            idx = this->path.size() - 12;
+            idx = this->path.size() - 12; // 12 is lenght of "?type=folder"
             if (this->path.substr(idx, 12) == "?type=folder") {
                 this->is_file = false;
                 this->path    = this->path.substr(0, idx);
@@ -95,6 +134,11 @@ bool Request::set_path(string src) {
             }
             else {
                 return true;
+            }
+            size_t test = 0;
+            /* Replacing %20 back for spaces */
+            while (( test = this->path.find("%20")) != this->path.npos ) {
+                this->path.replace(test, 3, " ");
             }
             return false;
         }
@@ -108,7 +152,7 @@ bool Request::set_len(string src) {
     if (idx == src.npos || idx2 == src.npos) {
         return true;
     }
-    idx += 16;
+    idx += 16; // 16 is lenght of "Content-Length: "
     try {
         this->content_len = stoi(src.substr(idx, idx2-idx));
     } catch (exception &e) {
@@ -118,48 +162,28 @@ bool Request::set_len(string src) {
 }
 
 void Request::ld_data(int fd) {
-    char buffer[256];
-    DEBUG_LINE("Reading socket");
-    unsigned len;
+    char buffer[256]; // for storing bytes from socket
+    unsigned len;     // for storing number of loaded bytes
     while ((len = recv(fd, buffer, 256, 0)) > 0) {
         this->byte_read += len;
+        /* Load data to string, no worry of zero character when using push_back*/
         for (unsigned i = 0; i < len; i++) {
             this->content.push_back(buffer[i]);
         }
+        /* Check if we already loaded http head */
         if (this->set_head(this->content) == false) {
-            break;
+            break; // we do not know how big socket is, neet to parse head first
         }
     }
-
-    DEBUG_LINE("Reading done");
-
+    /* Parsing head */
     if (this->proc_ld_data() == true) {
         throw new invalid_argument("ERROR: Socket has invalid header!");
     }
-
-    DEBUG_INLINE("Command: ");
-    DEBUG_LINE(this->command);
-    DEBUG_INLINE("Path: ");
-    DEBUG_LINE(this->path);
-    DEBUG_INLINE("Is it file: ");
-    DEBUG_LINE(to_string(this->is_file));
-    DEBUG_LINE("Header:");
-    DEBUG_LINE(this->head);
-    DEBUG_INLINE("Content-Length: ");
-    DEBUG_LINE(to_string(this->content_len));
-
+    /* We probably loaded some bytes from content... but how many?? */
     byte_read -= this->content_start;
+    /* Seperating contetn from header */
     this->content = this->content.substr(this->content_start);
-
-    DEBUG_INLINE("Bytes read from contentent: ");
-    DEBUG_LINE(to_string(this->byte_read));
-    DEBUG_LINE("Current content:");
-    DEBUG_INLINE(this->content);
-    DEBUG_LINE("--END--");
-    DEBUG_INLINE("Lenght of content: ");
-    DEBUG_LINE(to_string(this->content.size()));
-    DEBUG_LINE("Loading rest of socket");
-
+    /* Reading rest of socket */
     while (this->byte_read < this->content_len) {
         len = recv(fd, buffer, 256, 0);
         this->byte_read += len;
@@ -167,20 +191,16 @@ void Request::ld_data(int fd) {
             this->content.push_back(buffer[i]);
         }
     }
-
-    DEBUG_LINE("Loading done");
-    DEBUG_INLINE("Lenght of content: ");
-    DEBUG_LINE(to_string(this->content.size()));
 }
 
 bool Request::proc_ld_data() {
-    if (set_command(this->head)) {
+    if (set_command(this->head)) { // setting command
         return true;
     }
-    else if (set_path(this->head)){
+    else if (set_path(this->head)){ // setting path
         return true;
     }
-    if (this->command == "PUT" && this->is_file ) {
+    if (this->command == "PUT" && this->is_file ) { // setting content_len
         if (set_len(this->head)) {
             return true;
         }
@@ -195,6 +215,10 @@ Arguments::Arguments(int argc, char **argv) {
         if (args[i] == "-r" and this->set_root_folder == false and (i+1) < argc) {
             this->set_root_folder = true;
             this->root_folder     = args[++i];
+            /* We will need to join 2 strings, so this will evoid of multiple '/' in path */
+            if (this->root_folder[this->root_folder.size() - 1] == '/') {
+                this->root_folder.resize(this->root_folder.size() - 1);
+            }
         }
         else if (args[i] == "-p" and this->set_port == false and (i+1) < argc) {
              this->set_port    = true;
@@ -205,26 +229,21 @@ Arguments::Arguments(int argc, char **argv) {
         }
     }
 }
-/*
-"Not a file." když REMOTE-PATH ukazuje na soubor, ale je použita operace del,
-get, put
 
-"File not found." když REMOTE-PATH neukazuje na žádny existující objekt při
-použití operace del, get, put
-
-"Unknown error." pro ostatní chyby.
-*/
 string put_on_file(Request *req, string path) {
     string message = "";
+    DIR* dir = opendir(path.c_str());
+    if (dir) {
+        message = "Not a file.";
+        closedir(dir);
+        return message;
+    }
     ofstream fout(path, ios::binary);
     if (fout.is_open() == false) {
-        DEBUG_LINE("Fail to open file");
-        message = "404 Not Found";
+        message = "File not found.";
         return message;
     }
     else {
-        DEBUG_INLINE("Writing to: ");
-        DEBUG_LINE(path);
         fout.write(req->content.data(), req->content.size());
         message = "200 OK";
         fout.close();
@@ -233,8 +252,6 @@ string put_on_file(Request *req, string path) {
 }
 
 string put_on_folder(string path) {
-    struct stat st;
-    memset(&st, 0, sizeof(struct stat));
     string message;
     if (mkdir(path.c_str(), 0700) < 0) {
         if (errno == ENOENT) {
@@ -288,15 +305,6 @@ string get_on_foleder (string root_path, vector<char> **content) {
     return message;
 }
 
-/*
-"Not a file." když REMOTE-PATH ukazuje na soubor, ale je použita operace del,
-get, put
-
-"File not found." když REMOTE-PATH neukazuje na žádny existující objekt při
-použití operace del, get, put
-
-"Unknown error." pro ostatní chyby.
-*/
 string get_on_file (string path, vector<char> **content) {
     string message = "";
     size_t len;
@@ -306,7 +314,7 @@ string get_on_file (string path, vector<char> **content) {
         len = file.tellg();
         file.seekg(0, ios::beg);
         *content = new vector<char>(len);
-        file.read((char*) (&content[0][0][0]), len);
+        file.read((char*) (&content[0][0][0]), len); // You need to accept it and keep going...
         message = "200 OK";
     }
     else {
@@ -444,7 +452,7 @@ string create_response(Request *req, string root_path){
         response += to_string(error.size()); // Content-Length 0
     }
     response += "\r\nContent-Encoding: identity\r\n";
-    response = message + response + "\r\n";
+    response = "HTTP/1.1 " + message + response + "\r\n";
     if (content != nullptr) {
 //        response.resize(response.size()+content->size()); // mno.. napad dobry ale ustrelil jsem si nohu
         for (size_t i = 0; i < content->size(); i++) {
@@ -479,15 +487,11 @@ int main(int argc, char **argv) {
         portno; // Port number
     socklen_t clilen;        // Size of clien's addres
     struct sockaddr_in serv_addr = {},
-                        cli_addr  = {};
+                       cli_addr  = {};
 
-    /*
-    struct sockaddr_in6 serv_addr = {0,},
-                        cli_addr  = {0,};
-     */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        cerr << "ERROR: Could not open socket\n";
+        cerr << "ERROR: Could not open socket";
         return 1; // TODO
     }
     try {
@@ -505,18 +509,13 @@ int main(int argc, char **argv) {
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port        = htons(portno);
 
-    /*
-    serv_addr.sin6_family = AF_INET6;
-    serv_addr.sin6_addr = in6addr_any;
-    serv_addr.sin6_port = htons(portno);
-    */
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        cerr << "ERROR: Unable to bind\n";
+        cerr << "ERROR: Unable to bind";
         return 1; // TODO
     }
 
     if (listen(sockfd, 1) < 0) {
-        cerr << "ERROR: Unable to listen\n";
+        cerr << "ERROR: Unable to listen";
         return 1;
     }
     string message;
@@ -527,11 +526,8 @@ int main(int argc, char **argv) {
         if (sockcomm > 0) {
             req->ld_data(sockcomm);
             message = create_response(req, args->root_folder);
-            DEBUG_LINE("Sending response: ");
-            DEBUG_INLINE(message.data());
-            DEBUG_LINE("--END--");
             if (send(sockcomm, message.data(), message.size(), 0) < 0) {
-                cerr << "ERROR: Unable to send message.\n";
+                cerr << "ERROR: Unable to send message.";
                 return 1;
             }
         }

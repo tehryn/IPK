@@ -1,0 +1,129 @@
+<h1>ftrest(1)</h1>
+
+<h2>NAME</h2>
+
+<p>ftrest - client/server application using RESTful API</p>
+
+<h2>SYNOPSIS</h2>
+
+<p><strong>ftrest</strong> COMMAND [PROTOCOL]HOST[:PORT]/USER/[REMOTE<em>PATH] [LOCAL</em>PATH]</p>
+
+<p><strong>ftrestd</strong> [<strong>-p</strong> <em>PORT</em>] [<strong>-r</strong> <em>ROOT</em>]</p>
+
+<h2>DESCRIPTION</h2>
+
+<p>Application consists of two parts - ftrest and ftrestd. Ftrest represends
+client and ftrestd represends server. Client part is used for sendig requests
+and server part is used for parsing requests and reading/writing files.</p>
+
+<h2>OPTIONS</h2>
+
+<h3>COMMAND</h3>
+
+<p>Specifies the command that will be used.
+* <strong>get</strong> - Copies file from server and store it to file defined by LOCAL<em>PATH.
+If LOCAL</em>PATH is not set, file will be downloaded to current directory.
+* <strong>lst</strong> - Recieves list of files and directories in specific directory.
+* <strong>del</strong> - Deletes file on server.
+* <strong>rmd</strong> - Deletes empty folder on server.
+* <strong>mkd</strong> - Creates directory on server.
+* <strong>put</strong> - Uploads file to server. LOCAL_PATH must be specified to
+use this command.</p>
+
+<h3>PROTOCOL</h3>
+
+<p>Specifies the protocol such as http://, tcp://, etc. Default value is http://</p>
+
+<h3>HOST</h3>
+
+<p>Specifies host as a name such as localhost, www.example.com, etc</p>
+
+<h3>PORT</h3>
+
+<p>Specifies port number that will be used. Default value is 6677</p>
+
+<h3>USER</h3>
+
+<p>Specifies user directory. Keep in mind, that you can use only <strong>lst</strong> command
+upon this directory</p>
+
+<h3>REMOTE_PATH</h3>
+
+<p>Specifies the path to directory or file</p>
+
+<h3>LOCAL_PATH</h3>
+
+<p>Specifies the path to local file.</p>
+
+<h3>PORT</h3>
+
+<p>Port, where server will bind. Default value is 6677.</p>
+
+<h3>ROOT</h3>
+
+<p>Root directory of server. Default directory id current directory.</p>
+
+<h2>DIAGNOSTICS</h2>
+
+<p>Following diagnostics might appear on stderr:
+* <strong>Not a directory.</strong>
+* <strong>Directory not found.</strong>
+* <strong>Directory not empty.</strong>
+* <strong>Already exists.</strong>
+* <strong>Not a file.</strong>
+* <strong>File not found.</strong>
+* <strong>Unknown error</strong></p>
+
+<h2>EXAMPLE 1</h2>
+
+<p>ftrest mkd http://localhost:12345/xmatej52/new_dir/</p>
+
+<p>Creates directory <em>new_dir</em> on server local computer and port number 12345.</p>
+
+<h2>EXAMPLE 2</h2>
+
+<p>ftrest put http://localhost:12345/xmatej52/new_file ./hello.txt</p>
+
+<p>Copies file <em>hello.txt</em> to local computer into user directory <em>xmatej52</em> and
+store it as <em>new_file</em>.</p>
+
+<h2>EXAMPLE 3</h2>
+
+<p>ftrest lst http://localhost:12345/xmatej52/</p>
+
+<p>Prints list of files and folders of user <em>xmatej52</em>.</p>
+
+<h2>EXAMPLE 4</h2>
+
+<p>ftrest get http://localhost:12345/xmatej52/new_file ./copy.txt</p>
+
+<p>Downloads file <em>new_file</em> of user <em>xmatej52</em> and store it as <em>copy.txt</em>.</p>
+
+<h2>EXAMPLE 5</h2>
+
+<p>ftrest del http://localhost:12345/xmatej52/new_file</p>
+
+<p>Deletes file <em>new_file</em> of user <em>xmatej52</em>.</p>
+
+<h2>EXAMPLE 6</h2>
+
+<p>ftrest rmd http://localhost:12345/xmatej52/new_dir/</p>
+
+<p>Removes directory <em>new_dir</em> of user <em>xmatej52</em>.    </p>
+
+<h2>Example 7</h2>
+
+<p>ftrestd -p 12345 -r /homes/eva/xm/</p>
+
+<p>Starts server on local computer with binded to port 12345 and rwith root
+directory as <em>/homes/eva/xm/</em></p>
+
+<h2>BUGS</h2>
+
+<ul>
+<li>Only one client can be connected at time.</li>
+<li>Connecting to <em>ftrestd</em> with different client that <em>ftrest</em> can cause unexpected behavior
+<h2>AUTHOR</h2></li>
+</ul>
+
+<p>Written by Matějka Jiří, xmatej52@stud.fit.vutbr.cz</p>

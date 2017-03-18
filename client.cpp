@@ -16,14 +16,6 @@
 //#include <netinet/in.h> //TODO
 #include <netdb.h> // hostent, gethostbyname
 
-#ifdef DEBUG
-#define DEBUG_LINE(x)   (cout << x << endl)
-#define DEBUG_INLINE(x) (cout << x)
-#else
-#define DEBUG_LINE(x) ;
-#define DEBUG_INLINE(x) ;
-#endif
-
 using namespace std;
 
 class Arguments {
@@ -173,11 +165,6 @@ Arguments::Arguments(int argc, char **argv) {
         }
         last_slash = prev_slash;
     }
-    DEBUG_LINE("protocol: "+this->protocol);
-    DEBUG_LINE("port: "+ to_string(this->port));
-    DEBUG_LINE("remote path: "+this->remote_path);
-    DEBUG_LINE("hostname: "+this->server);
-    DEBUG_LINE("-------------------------------------");
 }
 
 Arguments::~Arguments() {
@@ -213,8 +200,8 @@ bool Response::set_len(string src) {
 
 void Response::set_error() {
     size_t idx = 0;
-    size_t idx2 = this->head.find("\r\n");
-    if (this->head.substr(0, idx2) != "200 OK") {
+    size_t idx2 = 0;
+    if (this->head.substr(9, 6) != "200 OK") {
         idx = this->content.find("\"Error\":\"") + 9;
         idx2 = this->content.find("\"", idx);
         this->error = this->content.substr(idx, idx2-idx);
@@ -235,7 +222,6 @@ bool Response::write_to_file(Arguments *args) {
 
 Response::Response(int fd) {
     char buffer[256];
-    DEBUG_LINE("Reading socket");
     unsigned len;
     while ((len = recv(fd, buffer, 256, 0)) > 0) {
         this->byte_read += len;
@@ -246,29 +232,12 @@ Response::Response(int fd) {
             break;
         }
     }
-    DEBUG_LINE("Obsah bufferu");
-    DEBUG_INLINE(buffer);
-    DEBUG_LINE("--END--");
     if (this->set_len(this->head)) {
         throw new invalid_argument("ERROR: No Content-Length specified!");
     }
-    DEBUG_LINE("Reading done");
-    DEBUG_LINE("Header:");
-    DEBUG_LINE(this->head);
-    DEBUG_INLINE("Content-Length: ");
-    DEBUG_LINE(to_string(this->content_len));
 
     byte_read -= this->content_start;
     this->content = this->content.substr(this->content_start);
-
-    DEBUG_INLINE("Bytes read from contentent: ");
-    DEBUG_LINE(to_string(this->byte_read));
-    DEBUG_LINE("Current content:");
-    DEBUG_INLINE(this->content);
-    DEBUG_LINE("--END--");
-    DEBUG_INLINE("Lenght of content: ");
-    DEBUG_LINE(to_string(this->content.size()));
-    DEBUG_LINE("Loading rest of socket");
 
     while (this->byte_read < this->content_len) {
         len = recv(fd, buffer, 256, 0);
@@ -278,10 +247,6 @@ Response::Response(int fd) {
         }
     }
     this->set_error();
-    DEBUG_LINE("Loading done");
-    DEBUG_INLINE("Lenght of content: ");
-    DEBUG_LINE(to_string(this->content.size()));
-
 }
 
 string http_request(Arguments *args) {
@@ -324,7 +289,6 @@ int main(int argc, char **argv) {
     }
     catch (exception &e) {
         cerr << "ERROR: Something bad happend...\n";
-        DEBUG_LINE(e.what());
         return 1; // TODO
     }
 
@@ -345,18 +309,13 @@ int main(int argc, char **argv) {
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = inet_addr(ip_addres);
     serv_addr.sin_port = htons(args->port);
-    DEBUG_LINE("Connecting...");
     if (connect(sockcl, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         cerr << "ERROR: Unable to connect\n";
         close(sockcl);
         delete args;
         return 1;
     }
-    DEBUG_LINE("Connected");
     string request = http_request(args);
-    DEBUG_LINE("Sending message:");
-    DEBUG_INLINE(request);
-    DEBUG_LINE("--END--");
     if (send(sockcl, request.data(), request.size(), 0) < 0) {
         cerr << "ERROR: Unable to send message\n";
         close(sockcl);
@@ -364,7 +323,6 @@ int main(int argc, char **argv) {
         return 1; // TODO
     }
 
-    DEBUG_LINE("Server response:");
     Response resp(sockcl);
     if (resp.error != "") {
         cerr << resp.error;
@@ -375,7 +333,6 @@ int main(int argc, char **argv) {
         }
         cout << resp.content;
     }
-    DEBUG_LINE("--END--");
     close(sockcl);
     delete args;
     return 0;
