@@ -10,8 +10,13 @@ ftrest - file transfer using REST
 `ftrestd` [`-p` *PORT*] [`-r` *ROOT*]
 
 ##DESCRIPTION
+
 ##OPTIONS
+
 ##DIAGNOSTICS
+
 ##BUGS
+
 ##EXAMPLES
+
 ##AUTHOR
