@@ -39,7 +39,7 @@ public:
     string   server       = "";
     string   command      = "";
     string   remote_path  = "";
-    string   local_path   = "";
+    string   local_path   = "./";
     string   file_folder  = "";
     Arguments(int argc, char **argv);
     ~Arguments();
@@ -58,6 +58,7 @@ public:
     string content       = "";
     string error         = "";
     Response(int fd);
+    bool write_to_file(Arguments *args);
 };
 
 Arguments::Arguments(int argc, char **argv) {
@@ -104,6 +105,9 @@ Arguments::Arguments(int argc, char **argv) {
         else if (this->l_path_set == false) {
             this->l_path_set = true;
             this->local_path = args[i];
+            if(this->local_path[0] == '~') {
+                this->local_path[0] = '.';
+            }
         }
         else {
             throw invalid_argument("ERROR: Too many arguments\n");
@@ -160,6 +164,16 @@ Arguments::Arguments(int argc, char **argv) {
         this->content = new vector<char>(this->file_len);
         file.read((char*) &(this->content[0][0]), this->file_len);
     }
+    if(this->local_path[this->local_path.size()-1] == '/') {
+        size_t last_slash, prev_slash;
+        string substr = this->remote_path;
+        while ((last_slash = substr.find("/")) != substr.npos) {
+            prev_slash = last_slash;
+            substr = substr.substr(last_slash+1, substr.size() - last_slash);
+            cout << substr << endl;
+        }
+        last_slash = prev_slash;
+    }
     DEBUG_LINE("protocol: "+this->protocol);
     DEBUG_LINE("port: "+ to_string(this->port));
     DEBUG_LINE("remote path: "+this->remote_path);
@@ -205,6 +219,18 @@ void Response::set_error() {
         idx = this->content.find("\"Error\":\"") + 9;
         idx2 = this->content.find("\"", idx);
         this->error = this->content.substr(idx, idx2-idx);
+    }
+}
+
+bool Response::write_to_file(Arguments *args) {
+    ofstream fout(args->local_path, ios::binary);
+    if (!fout.is_open()) {
+        return true;
+    }
+    else {
+        fout.write(this->content.data(), this->content.size());
+        fout.close();
+        return false;
     }
 }
 
@@ -345,6 +371,9 @@ int main(int argc, char **argv) {
         cerr << resp.error;
     }
     else {
+        if(args->command == "GET" and args->file_folder == "?type=file") {
+            resp.write_to_file(args);
+        }
         cout << resp.content;
     }
     DEBUG_LINE("--END--");
