@@ -3,6 +3,7 @@
 #include <vector>
 #include <stdexcept>
 #include <fstream>
+#include <csignal>
 
 //#include <stdio.h>
 //#include <stdlib.h>
@@ -273,6 +274,7 @@ string get_on_foleder (string root_path, vector<char> **content) {
             (*content)->push_back('\n');
         }
         message = "200 OK";
+        closedir(dir);
     }
     else if (errno == ENOENT){
         message = "Directory not found.";
@@ -332,8 +334,8 @@ string del_on_file(string path) {
 
 string del_on_folder(string path) {
     string message = "";
-    if (rmdir(path.c_str()) < 0) {
-        message = "400 Bad Request";
+    if (rmdir(path.c_str()) == 0) {
+        message = "200 OK";
     }
     else if (errno == ENOENT){
         message = "Directory not found.";
@@ -454,17 +456,27 @@ string create_response(Request *req, string root_path){
     return response;
 }
 
-int main(int argc, char **argv) {
-    Arguments *args;
-    try {
-        args = new Arguments(argc, argv);
-    } catch (invalid_argument& e) {
-        cerr << e.what();
-        return -1; // TODO
+Request *req;
+Arguments *args;
+int sockfd, sockcomm;
+void quit(int signum) {
+    if (req != nullptr) {
+        delete req;
+        close(sockcomm);
     }
+    if (args != nullptr) {
+        delete args;
+        close(sockfd);
+    }
+    exit(signum);
+}
+
+int main(int argc, char **argv) {
+    signal(SIGTERM, quit);
+    signal(SIGINT, quit);
     int sockfd,              // Soclet descriptor
         sockcomm,            // Socket descriptor
-        portno = args->port; // Port number
+        portno; // Port number
     socklen_t clilen;        // Size of clien's addres
     struct sockaddr_in serv_addr = {},
                         cli_addr  = {};
@@ -478,6 +490,13 @@ int main(int argc, char **argv) {
         cerr << "ERROR: Could not open socket\n";
         return 1; // TODO
     }
+    try {
+        args = new Arguments(argc, argv);
+    } catch (invalid_argument& e) {
+        cerr << e.what();
+        return -1; // TODO
+    }
+    portno = args->port;
     int optval = 1; // TODO k cemu to je?
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
 
@@ -500,7 +519,6 @@ int main(int argc, char **argv) {
         cerr << "ERROR: Unable to listen\n";
         return 1;
     }
-    Request *req;
     string message;
     while (true) {
         req = new Request;
@@ -518,6 +536,7 @@ int main(int argc, char **argv) {
             }
         }
         delete req;
+        req = nullptr;
         close(sockcomm);
     }
     delete args;

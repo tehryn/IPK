@@ -170,7 +170,6 @@ Arguments::Arguments(int argc, char **argv) {
         while ((last_slash = substr.find("/")) != substr.npos) {
             prev_slash = last_slash;
             substr = substr.substr(last_slash+1, substr.size() - last_slash);
-            cout << substr << endl;
         }
         last_slash = prev_slash;
     }
