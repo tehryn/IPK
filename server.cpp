@@ -5,11 +5,8 @@
 #include <fstream>
 #include <csignal>
 
-//#include <stdio.h>
-//#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-//#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/stat.h>
@@ -32,7 +29,7 @@ public:
     /// Port number
     unsigned port        = 6677;
     /**
-     * Construct an Argument class. Throw invalid_argument exception on error.
+     * Construct an Argument class. Throws invalid_argument exception on error.
      * @param argc Number of arguments.
      * @param argv Array of arguments.
      */
@@ -307,6 +304,12 @@ string get_on_foleder (string root_path, vector<char> **content) {
 
 string get_on_file (string path, vector<char> **content) {
     string message = "";
+    DIR* dir = opendir(path.c_str());
+    if (dir) {
+        message = "Not a file.";
+        closedir(dir);
+        return message;
+    }
     size_t len;
     ifstream file(path.c_str(), ios::binary);
     if (file.is_open()) {

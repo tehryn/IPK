@@ -11,50 +11,103 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h> //inet_ntoa, inet_addr
-//#include <sys/types.h> //TODO
 #include <sys/socket.h>
-//#include <netinet/in.h> //TODO
 #include <netdb.h> // hostent, gethostbyname
 
 using namespace std;
 
+/**
+ * Class for storing program settings.
+ */
 class Arguments {
 private:
+    /// Tells if command argument was set.
     bool cmd_set    = false;
+    /// Tells if remote path argument was set.
     bool r_path_set = false;
+    /// Tells if local path argument was set.
     bool l_path_set = false;
 public:
+    /// When command is get, this vector will store content of input file.
     vector<char> *content = nullptr;
+    /// When command is get, this variable stores lenght of readed file.
     size_t   file_len     = 0;
+    /// Port where is host is binded.
     int      port         = 6677;
-    string   protocol     = "http://"; // TODO a tohle mi je k čemu???
+    /// Protocol, usless variable. Client.cpp does not use it.
+    string   protocol     = "http://";
+    /// Name of host.
     string   server       = "";
+    /// Stores value of command argument.
     string   command      = "";
+    /// Stores value of remote path argument.
     string   remote_path  = "";
+    /// Stores value of local path (without protocol, host and port).
     string   local_path   = "./";
+    /// This hold strinf that will be added to path when sending request
+    /// (?type=file or ?type=folder)
     string   file_folder  = "";
+    /**
+     * Construct an Argument class. Throw invalid_argument exception on error.
+     * @param argc Number of arguments.
+     * @param argv Array of arguments.
+     */
     Arguments(int argc, char **argv);
+    /**
+     * Destructor.
+     */
     ~Arguments();
 };
 
+/**
+ * Class for parsing responses.
+ */
 class Response {
 private:
+    /// Index where content starts (Http head ends).
     size_t content_start = 1;
+    /// Number of bytes we have read from content.
     size_t byte_read     = 0;
+    /**
+     * Retrieve response header.
+     * @param  src String where header is.
+     * @return     True when there is no header, false on succes.
+     */
     bool set_head(string src);
+    /**
+     * Retrieve response header.
+     * @param  src String where header is.
+     * @return     True when there is no header, false on succes.
+     */
     bool set_len(string src);
+    /**
+     * If response is not 200 OK, sets output error.
+     */
     void set_error();
 public:
+    /// Response header.
     string head          = "";
+    /// Lenght of content.
     size_t content_len   =  0;
+    /// Content itself.
     string content       = "";
+    /// Output error (when response is not 200 OK).
     string error         = "";
+    /**
+     * Constructor
+     * @param fd Socket descriptor.
+     */
     Response(int fd);
+    /**
+     * Writes socket content to file.
+     * @param  args Program settings (needed fo local path to file)
+     * @return      true on error, false on succes.
+     */
     bool write_to_file(Arguments *args);
 };
 
 Arguments::Arguments(int argc, char **argv) {
-    vector<string> args(argv, argv + argc);
+    vector<string> args(argv, argv + argc); // arguments into vector of string
     for (int i = 1; i < argc; i++) {
         if (this->cmd_set == false) {
             this->cmd_set = true;
@@ -90,6 +143,7 @@ Arguments::Arguments(int argc, char **argv) {
             this->r_path_set = true;
             this->remote_path = args[i];
             size_t test = 0;
+            /* replacing spaces */
             while (( test = this->remote_path.find(" ")) != this->remote_path.npos ) {
                 this->remote_path.replace(test, 1, "%20");
             }
@@ -97,21 +151,19 @@ Arguments::Arguments(int argc, char **argv) {
         else if (this->l_path_set == false) {
             this->l_path_set = true;
             this->local_path = args[i];
-            if(this->local_path[0] == '~') {
-                this->local_path[0] = '.';
-            }
         }
         else {
             throw invalid_argument("ERROR: Too many arguments\n");
         }
     }
     if (this->command == "PUT" and this->file_folder == "?type=file" and l_path_set == false) {
-        throw invalid_argument("ERROR: Set local path when using put or mkd\n");
+        throw invalid_argument("ERROR: Set local path when using put\n");
     }
     else if (this->cmd_set == false or this->r_path_set == false) {
         throw invalid_argument("ERROR: Set both command and remote path\n");
     }
     size_t index = this->remote_path.find("://");
+    /* Retrieving protocol */
     if (index == this->remote_path.npos) {
         index = 0;
     }
@@ -120,6 +172,7 @@ Arguments::Arguments(int argc, char **argv) {
         this->protocol = this->remote_path.substr(0, index);
         this->remote_path.erase(0, index);
     }
+    /* Retrieving port number */
     size_t index2 = this->remote_path.find("/", index);
     if (index2 == this->remote_path.npos) {
         index2 = this->remote_path.size();
@@ -132,23 +185,24 @@ Arguments::Arguments(int argc, char **argv) {
         this->port = stoi(this->remote_path.substr(index3+1, index2));
         this->remote_path.erase(index3, index2-index3);
     }
+    /* Detecting user path */
     index = this->remote_path.find("/");
     if (index == this->remote_path.npos) {
-        throw invalid_argument("ERROR: Invalid user specified\n");
+        throw invalid_argument("ERROR: Invalid user specified");
     }
-    this->server      = this->remote_path.substr(0, index);
-    this->remote_path = this->remote_path.substr(index, this->remote_path.size());
+    this->server      = this->remote_path.substr(0, index); // Retrieving hostname
+    this->remote_path = this->remote_path.substr(index, this->remote_path.size()); // retrieving path to file/folder on server
     index = this->remote_path.find("/", 1);
     if (index == 1 || (index == (this->remote_path.size()-1) && this->command != "GET") || index == this->remote_path.npos) {
-        throw invalid_argument("ERROR: Invalid user or remote path\n");
+        throw invalid_argument("ERROR: Invalid user or remote path");
     }
     if (this->file_folder == "?type=file" && this->remote_path[this->remote_path.size()-1] == '/') {
-        throw invalid_argument("Unable to use file method on directory\n");
+        throw invalid_argument("Unable to use file method on directory");
     }
     if (this->command == "PUT" && this->file_folder == "?type=file") {
         ifstream file(this->local_path, ios::binary);
         if (!file.is_open()) {
-            throw invalid_argument("No such file\n");
+            throw invalid_argument("ERROR: Invalid local path.");
         }
         file.seekg(0, ios::end);
         this->file_len = file.tellg();
@@ -214,6 +268,7 @@ bool Response::write_to_file(Arguments *args) {
         return true;
     }
     else {
+        cout << args->local_path;
         fout.write(this->content.data(), this->content.size());
         fout.close();
         return false;
@@ -329,9 +384,16 @@ int main(int argc, char **argv) {
     }
     else {
         if(args->command == "GET" and args->file_folder == "?type=file") {
-            resp.write_to_file(args);
+            if (resp.write_to_file(args)) {
+                cerr << "ERROR: Unable to open local file.";
+                close(sockcl);
+                delete args;
+                return 1;
+            }
         }
-        cout << resp.content;
+        else {
+            cout << resp.content;
+        }
     }
     close(sockcl);
     delete args;
