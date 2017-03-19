@@ -7,7 +7,6 @@
 
 //#include <stdio.h>
 #include <time.h>
-//#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h> //inet_ntoa, inet_addr
@@ -106,6 +105,8 @@ public:
     bool write_to_file(Arguments *args);
 };
 
+/******************************************************************************/
+// Arguments methods
 Arguments::Arguments(int argc, char **argv) {
     vector<string> args(argv, argv + argc); // arguments into vector of string
     for (int i = 1; i < argc; i++) {
@@ -136,7 +137,7 @@ Arguments::Arguments(int argc, char **argv) {
                 file_folder   = "?type=folder";
             }
             else {
-                throw invalid_argument("ERROR: Invalid command\n");
+                throw invalid_argument("ERROR: Invalid command");
             }
         }
         else if (this->r_path_set == false) {
@@ -153,14 +154,15 @@ Arguments::Arguments(int argc, char **argv) {
             this->local_path = args[i];
         }
         else {
-            throw invalid_argument("ERROR: Too many arguments\n");
+            throw invalid_argument("ERROR: Too many arguments");
         }
     }
+    /* Testing validity of arguments */
     if (this->command == "PUT" and this->file_folder == "?type=file" and l_path_set == false) {
-        throw invalid_argument("ERROR: Set local path when using put\n");
+        throw invalid_argument("ERROR: Set local path when using put");
     }
     else if (this->cmd_set == false or this->r_path_set == false) {
-        throw invalid_argument("ERROR: Set both command and remote path\n");
+        throw invalid_argument("ERROR: Set both command and remote path");
     }
     size_t index = this->remote_path.find("://");
     /* Retrieving protocol */
@@ -193,12 +195,15 @@ Arguments::Arguments(int argc, char **argv) {
     this->server      = this->remote_path.substr(0, index); // Retrieving hostname
     this->remote_path = this->remote_path.substr(index, this->remote_path.size()); // retrieving path to file/folder on server
     index = this->remote_path.find("/", 1);
+    /* Is there user and remote path??? */
     if (index == 1 || (index == (this->remote_path.size()-1) && this->command != "GET") || index == this->remote_path.npos) {
         throw invalid_argument("ERROR: Invalid user or remote path");
     }
+    /* Is user trying to use file method on directory??? */
     if (this->file_folder == "?type=file" && this->remote_path[this->remote_path.size()-1] == '/') {
         throw invalid_argument("Unable to use file method on directory");
     }
+    /* Opening local file and loading its content. */
     if (this->command == "PUT" && this->file_folder == "?type=file") {
         ifstream file(this->local_path, ios::binary);
         if (!file.is_open()) {
@@ -210,14 +215,14 @@ Arguments::Arguments(int argc, char **argv) {
         this->content = new vector<char>(this->file_len);
         file.read((char*) &(this->content[0][0]), this->file_len);
     }
+    /* If local path is folder, retrieve filename from remote path. */
     if(this->local_path[this->local_path.size()-1] == '/') {
-        size_t last_slash, prev_slash;
+        size_t last_slash;
         string substr = this->remote_path;
         while ((last_slash = substr.find("/")) != substr.npos) {
-            prev_slash = last_slash;
             substr = substr.substr(last_slash+1, substr.size() - last_slash);
         }
-        last_slash = prev_slash;
+        this->local_path += substr;
     }
 }
 
@@ -227,6 +232,8 @@ Arguments::~Arguments() {
     }
 }
 
+/******************************************************************************/
+// Response methods.
 bool Response::set_head(string src) {
     this->content_start = src.find("\r\n\r\n");
     if (this->content_start != src.npos) {
@@ -268,7 +275,6 @@ bool Response::write_to_file(Arguments *args) {
         return true;
     }
     else {
-        cout << args->local_path;
         fout.write(this->content.data(), this->content.size());
         fout.close();
         return false;
@@ -303,7 +309,13 @@ Response::Response(int fd) {
     }
     this->set_error();
 }
+/******************************************************************************/
 
+/**
+ * Creates http_request.
+ * @param  args Program settings.
+ * @return      String that represents http request.
+ */
 string http_request(Arguments *args) {
     string request = args->command + " " + args->remote_path + args->file_folder + " HTTP/1.1\r\n";
     char buf[128];

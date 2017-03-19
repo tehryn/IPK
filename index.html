@@ -12,23 +12,27 @@
 
 <h2>DESCRIPTION</h2>
 
-<p>Application consists of two parts - ftrest and ftrestd. Ftrest represends
-client and ftrestd represends server. Client part is used for sendig requests
+<p>Application consists of two parts - ftrest and ftrestd. Ftrest represents
+client and ftrestd represents server. Client part is used for sending requests
 and server part is used for parsing requests and reading/writing files.</p>
 
 <h2>OPTIONS</h2>
 
 <h3>COMMAND</h3>
 
-<p>Specifies the command that will be used.
-* <strong>get</strong> - Copies file from server and store it to file defined by LOCAL<em>PATH.
-If LOCAL</em>PATH is not set, file will be downloaded to current directory.
-* <strong>lst</strong> - Recieves list of files and directories in specific directory.
-* <strong>del</strong> - Deletes file on server.
-* <strong>rmd</strong> - Deletes empty folder on server.
-* <strong>mkd</strong> - Creates directory on server.
-* <strong>put</strong> - Uploads file to server. LOCAL_PATH must be specified to
-use this command.</p>
+<p>Specifies the command that will be used.</p>
+
+<ul>
+<li><strong>get</strong> - Copies file from server and store it to file defined by LOCAL<em>PATH.
+        If LOCAL</em>PATH is not set, file will be downloaded to current
+        directory.</li>
+<li><strong>lst</strong> - Receives list of files and directories in specific directory.</li>
+<li><strong>del</strong> - Deletes file on server.</li>
+<li><strong>rmd</strong> - Deletes empty folder on server.</li>
+<li><strong>mkd</strong> - Creates directory on server.</li>
+<li><strong>put</strong> - Uploads file to server. LOCAL_PATH must be specified to
+        use this command.</li>
+</ul>
 
 <h3>PROTOCOL</h3>
 
@@ -53,7 +57,8 @@ upon this directory</p>
 
 <h3>LOCAL_PATH</h3>
 
-<p>Specifies the path to local file.</p>
+<p>Specifies the path to local file. If <em>LOCAL_PATH</em> is directory, file will be
+stored into directory.</p>
 
 <h3>PORT</h3>
 
@@ -65,14 +70,19 @@ upon this directory</p>
 
 <h2>DIAGNOSTICS</h2>
 
-<p>Following diagnostics might appear on stderr:
-* <strong>Not a directory.</strong>
-* <strong>Directory not found.</strong>
-* <strong>Directory not empty.</strong>
-* <strong>Already exists.</strong>
-* <strong>Not a file.</strong>
-* <strong>File not found.</strong>
-* <strong>Unknown error</strong></p>
+<p>Following diagnostics might appear on stderr:</p>
+
+<ul>
+<li><strong>Not a directory.</strong> - When using mkd, rmd or lst on file.</li>
+<li><strong>Directory not found.</strong> - When using mkd, rmd or lst but path to directory is invalid.</li>
+<li><strong>Directory not empty.</strong> - When using rmd on directory that is not empty.</li>
+<li><strong>Already exists.</strong> - When using mkd but directory already exists (or file with same name).</li>
+<li><strong>Not a file.</strong> - When using get, del or put but <em>REMOTE_PATH</em> leads to directory.</li>
+<li><strong>File not found.</strong> - When using get, del or put but some file or some of directories in path does not exists.</li>
+<li><strong>Unknown error</strong> - Unexpected error on server</li>
+<li><strong>ERROR: <em>description</em></strong> - When you entered invalid arguments such as using put but <em>LOCAL_PATH</em> leads to directory,
+                         using mkd or del on <em>USER</em>, etc...</li>
+</ul>
 
 <h2>EXAMPLE 1</h2>
 
@@ -109,9 +119,9 @@ store it as <em>new_file</em>.</p>
 
 <p>ftrest rmd http://localhost:12345/xmatej52/new_dir/</p>
 
-<p>Removes directory <em>new_dir</em> of user <em>xmatej52</em>.    </p>
+<p>Removes directory <em>new_dir</em> of user <em>xmatej52</em>.   </p>
 
-<h2>Example 7</h2>
+<h2>EXAMPLE 7</h2>
 
 <p>ftrestd -p 12345 -r /homes/eva/xm/</p>
 
@@ -122,8 +132,86 @@ directory as <em>/homes/eva/xm/</em></p>
 
 <ul>
 <li>Only one client can be connected at time.</li>
-<li>Connecting to <em>ftrestd</em> with different client that <em>ftrest</em> can cause unexpected behavior
-<h2>AUTHOR</h2></li>
+<li>Connecting to <em>ftrestd</em> with different client that <em>ftrest</em> can cause unexpected behavior</li>
 </ul>
+
+<h2>IMPLEMANTION</h2>
+
+<h3>ftrestd</h3>
+
+<p>I started with server side of application. First of all, I wrote simple server,
+that just sent all requests back as response and then I starting coding client.</p>
+
+<h3>ftrest</h3>
+
+<p>I created class <em>Arguments</em>, where I wanted to store program settings. I parsed
+all parameters, detected hostname, protocol, port number and remote path. I also
+checked if there is 'user directory' and if user is not trying to do some operation
+with it (mkd, rmd, del, put, get). Then I checked if user is not trying to use command
+which works with files on directory (file cann't end with '/'). Then I wrote function
+to open a file (when command get was entered) and loaded it into vector. I was afraid
+loading binary files into string because of zero character. Since all methods for
+working with arguments was finished, I created function for creating http request
+and client side was half finished. Because server only echoed what it received, I continued
+with server.</p>
+
+<h3>ftrestd</h3>
+
+<p>Since request was in correct format, I was able to start parsing it. I created class
+Arguments for storing program settings and then created class Request for parsing
+Requests from client. I loaded http header, retrieved Content-Length, if there was
+and with that information I loaded rest of request. Since I knew type of request
+and remote path, I was able to start creating response and completing my task. From
+<em>Linux Programmer's Manual</em> I read how system functions set <em>errno</em> and then detect
+errors if there was any. Then only was remaining was response header. After it was done,
+I continued working on client side.</p>
+
+<h3>ftrest</h3>
+
+<p>I copied Request class from ftrestd and make some little modifications and I was
+actually surprised it worked on first try.</p>
+
+<h2>TESTING</h2>
+
+<p>I had no time for some advanced testing. I had 2 debuging macros, which I just used
+everywhere so I was able to detect where is error quite quickly. Where macros
+wern't good enough I used <em>gdb</em>. When all was completed, I made some valgrind tests
+and then removed all debuging macros.</p>
+
+<h2>CONCLUSION</h2>
+
+<p>I had few time for this project, because I didn't expect that 10 points project will
+consume such amount of time. To be honest, this code is one of worst I have ever created
+and program is not effective as it could be, in fact it is very ineffective and
+slow. There are some memory leaks, that I cann't explain. Evan valgrind did not
+recognize where they come from. But I also <strong>think</strong> that I did good job and program
+works as it should be. It was not easy for me and I am glad we had such projects
+in this semester.</p>
+
+<h2>POSSIBLE EXTENSIONS</h2>
+
+<p>There was some specified extensions in presentation a some on the forum and sometimes
+it wasn't clear what we should do. So I do not know if I made any extensions, but
+I will try to explain my "features".</p>
+
+<h3>Protocol</h3>
+
+<p>In <em>ftrest</em> user is free to specify which protocol he/she wants to use. Default
+protocol is set as http, but user is free to enter there any protocol he/she wants.</p>
+
+<h3>Local path</h3>
+
+<p>In <em>ftrest</em> user does not need to specify local path to file, directory is enough!
+Program will retrieve filename from remote path. (only detectable if local path
+ends with '/')</p>
+
+<h3>Errors detection before connection</h3>
+
+<p>Before <em>ftrest</em> tries to connect to host, if user does not do some bad things on
+server, such as using <em>get</em>, <em>put</em> or <em>del</em> command on directory (only detectable
+if remote path ends with '/'). In this case, client will not connect to host and
+write error message on stderr.</p>
+
+<h2>AUTHOR</h2>
 
 <p>Written by Matějka Jiří, xmatej52@stud.fit.vutbr.cz</p>
