@@ -427,7 +427,7 @@ int main(int argc, char **argv) {
             }
         }
         else {
-            cout << resp.content << endl;
+            cout << resp.content;
         }
     }
 

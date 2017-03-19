@@ -51,7 +51,7 @@ Specifies the path to local file. If *LOCAL_PATH* is directory, file will be
 stored into directory.
 
 ###PORT
-Port, where server will bind. Default value is 6677.
+Port to which the server will bind. Default value is 6677.
 
 ###ROOT
 Root directory of server. Default directory is current directory.
@@ -78,7 +78,7 @@ Creates directory *new_dir* on server local computer and port number 12345.
 ftrest put http://localhost:12345/xmatej52/new_file ./hello.txt
 
 Copies file *hello.txt* to local computer into user directory *xmatej52* and
-store it as *new_file*.
+stores it as a *new_file*.
 
 ##EXAMPLE 3
 ftrest lst http://localhost:12345/xmatej52/
@@ -89,12 +89,12 @@ Prints list of files and folders of user *xmatej52*.
 
 ftrest get http://localhost:12345/xmatej52/new_file ./copy.txt
 
-Downloads file *new_file* of user *xmatej52* and store it as *copy.txt*.
+Downloads file *new_file* from user *xmatej52* and stores it as *copy.txt*.
 
 ##EXAMPLE 5
 ftrest del http://localhost:12345/xmatej52/new_file
 
-Deletes file *new_file* of user *xmatej52*.
+Deletes file *new_file* from user *xmatej52*.
 
 ##EXAMPLE 6
 ftrest rmd http://localhost:12345/xmatej52/new_dir/
@@ -104,60 +104,12 @@ Removes directory *new_dir* of user *xmatej52*.
 ##EXAMPLE 7
 ftrestd -p 12345 -r /homes/eva/xm/
 
-Starts server on local computer with binded to port 12345 and rwith root
-directory as */homes/eva/xm/*
+Starts server binded to port 12345 on local computer with root directory set to
+*/homes/eva/xm/*
 
 ##BUGS
-* Only one client can be connected at time.
-* Connecting to *ftrestd* with different client that *ftrest* can cause unexpected behavior
-
-##IMPLEMANTION
-
-###ftrestd
-I started with server side of application. First of all, I wrote simple server,
-that just sent all requests back as response and then I starting coding client.
-
-###ftrest
-I created class *Arguments*, where I wanted to store program settings. I parsed
-all parameters, detected hostname, protocol, port number and remote path. I also
-checked if there is 'user directory' and if user is not trying to do some operation
-with it (mkd, rmd, del, put, get). Then I checked if user is not trying to use command
-which works with files on directory (file cann't end with '/'). Then I wrote function
-to open a file (when command get was entered) and loaded it into vector. I was afraid
-loading binary files into string because of zero character. Since all methods for
-working with arguments was finished, I created function for creating http request
-and client side was half finished. Because server only echoed what it received, I continued
-with server.
-
-###ftrestd
-Since request was in correct format, I was able to start parsing it. I created class
-Arguments for storing program settings and then created class Request for parsing
-Requests from client. I loaded http header, retrieved Content-Length, if there was
-and with that information I loaded rest of request. Since I knew type of request
-and remote path, I was able to start creating response and completing my task. From
-*Linux Programmer's Manual* I read how system functions set *errno* and then detect
-errors if there was any. Then only was remaining was response header. After it was done,
-I continued working on client side.
-
-###ftrest
-I copied Request class from ftrestd and make some little modifications and I was
-actually surprised it worked on first try.
-
-##TESTING
-I had no time for some advanced testing. I had 2 debuging macros, which I just used
-everywhere so I was able to detect where is error quite quickly. Where macros
-wern't good enough I used *gdb*. When all was completed, I made some valgrind tests
-and then removed all debuging macros.
-
-##CONCLUSION
-I had few time for this project, because I didn't expect that 10 points project will
-consume such amount of time. To be honest, this code is one of worst I have ever created
-and program is not effective as it could be, in fact it is very ineffective and
-slow. There are some memory leaks, that I cann't explain. Evan valgrind did not
-recognize where they come from and if I put *return 0* as a first line of main function,
-the memory leaks are still there. But I also **think** that I did good job and program
-works as it should be. It was not easy for me and I am glad we had such projects
-in this semester.
+* Only one client can be connected at a time.
+* Connecting to *ftrestd* with different client than *ftrest* can cause unexpected behavior
 
 ##POSSIBLE EXTENSIONS
 There was some specified extensions in presentation a some on the forum and sometimes
