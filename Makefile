@@ -1,12 +1,20 @@
 all: ftrest ftrestd
 
-ftrestd: server.cpp
-	g++ -Wall -std=c++11 -pedantic -lm -g -Wextra -pedantic -o ftrestd server.cpp
+ftrestd: server.o
+	g++ -std=c++11 -o ftrestd server.o
 
-ftrest: client.cpp
-		g++ -Wall -std=c++11 -pedantic -lm -g -Wextra -pedantic -o ftrest client.cpp
+ftrest: client.o
+	g++ -std=c++11 -o ftrest client.o
 
-.PHONY: debug
-debug: client.cpp server.cpp
-		g++ -Wall -std=c++11 -pedantic -lm -g -Wextra -pedantic -o ftrest client.cpp -DDEBUG
-		g++ -Wall -std=c++11 -pedantic -lm -g -Wextra -pedantic -o ftrestd server.cpp -DDEBUG
+client.o:
+	g++ -std=c++11 -c client.cpp -o client.o
+
+server.o:
+	g++ -std=c++11 -c server.cpp -o server.o
+
+.PHONY: debug clean
+debug:
+	g++ -Wall -std=c++11 -pedantic -lm -g -Wextra -pedantic -o ftrest client.cpp -DDEBUG
+	g++ -Wall -std=c++11 -pedantic -lm -g -Wextra -pedantic -o ftrestd server.cpp -DDEBUG
+clean:
+	rm client.o server.o

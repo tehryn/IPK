@@ -253,7 +253,7 @@ string http_request(Arguments *args) {
     string request = args->command + " " + args->remote_path + args->file_folder + " HTTP/1.1\r\n";
     char buf[128];
     time_t now = time(0);
-    struct tm tm = *localtime(&now);
+    struct tm tm = *gmtime(&now);
     strftime(buf, 128, "Date: %a, %d %b %Y %H:%M:%S %Z\r\n", &tm);
     request += buf;
     request += "Accept-Encoding: identity\r\n";

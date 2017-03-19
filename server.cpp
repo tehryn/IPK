@@ -365,7 +365,7 @@ string create_response(Request *req, string root_path){
     string error = "";
     char buf[128];
     time_t now = time(0);
-    struct tm tm = *localtime(&now);
+    struct tm tm = *gmtime(&now);
     strftime(buf, 128, "\r\nDate: %a, %d %b %Y %H:%M:%S %Z\r\n", &tm);
     string response = buf;
     vector<char> *content = nullptr;
@@ -454,7 +454,6 @@ string create_response(Request *req, string root_path){
     response += "\r\nContent-Encoding: identity\r\n";
     response = "HTTP/1.1 " + message + response + "\r\n";
     if (content != nullptr) {
-//        response.resize(response.size()+content->size()); // mno.. napad dobry ale ustrelil jsem si nohu
         for (size_t i = 0; i < content->size(); i++) {
             response += content[0][i];
         }
