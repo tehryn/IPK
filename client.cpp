@@ -362,17 +362,17 @@ int main(int argc, char **argv) {
     try {
         args = new Arguments(argc, argv);
     } catch (invalid_argument& e) {
-        cerr << e.what();
+        cerr << e.what() << endl;
         return 1;
     }
     catch (exception &e) {
-        cerr << "ERROR: Something bad happend...";
+        cerr << "ERROR: Something bad happend..." << endl;
         return 1;
     }
     // getting host by its name
     hostent *server = gethostbyname(args->server.c_str());
     if (server == NULL) {
-        cerr << "ERROR: Server not found\n";
+        cerr << "ERROR: Server not found" << endl;
         delete args;
         return 1;
     }
@@ -380,9 +380,9 @@ int main(int argc, char **argv) {
     // opening socket
     sockcl = socket(AF_INET, SOCK_STREAM, 0);
     if (sockcl <= 0) {
-        cerr << "ERROR: Unable to create socket\n";
+        cerr << "ERROR: Unable to create socket" << endl;
         delete args;
-        return 1; //TODO
+        return 1;
     }
 
     // preparing connection
@@ -394,7 +394,7 @@ int main(int argc, char **argv) {
 
     // connecting
     if (connect(sockcl, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        cerr << "ERROR: Unable to connect\n";
+        cerr << "ERROR: Unable to connect" << endl;
         close(sockcl);
         delete args;
         return 1;
@@ -404,10 +404,10 @@ int main(int argc, char **argv) {
 
     // sending message
     if (send(sockcl, request.data(), request.size(), 0) < 0) {
-        cerr << "ERROR: Unable to send message\n";
+        cerr << "ERROR: Unable to send message" << endl;
         close(sockcl);
         delete args;
-        return 1; // TODO
+        return 1;
     }
 
     // waiting for answer and parsing response
@@ -420,14 +420,14 @@ int main(int argc, char **argv) {
     else {
         if(args->command == "GET" and args->file_folder == "?type=file") {
             if (resp.write_to_file(args)) {
-                cerr << "ERROR: Unable to open local file.";
+                cerr << "ERROR: Unable to open local file." << endl;
                 close(sockcl);
                 delete args;
                 return 1;
             }
         }
         else {
-            cout << resp.content;
+            cout << resp.content << endl;
         }
     }
 

@@ -20,7 +20,7 @@ and server part is used for parsing requests and reading/writing files.
 ###COMMAND
 Specifies the command that will be used.
 
-* **get** - Copies file from server and store it to file defined by LOCAL_PATH.
+* **get** - Copies file from server and stores it in file defined by LOCAL_PATH.
             If LOCAL_PATH is not set, file will be downloaded to current
             directory.
 * **lst** - Receives list of files and directories in specific directory.
@@ -54,7 +54,7 @@ stored into directory.
 Port, where server will bind. Default value is 6677.
 
 ###ROOT
-Root directory of server. Default directory id current directory.
+Root directory of server. Default directory is current directory.
 
 ##DIAGNOSTICS
 Following diagnostics might appear on stderr:
@@ -181,7 +181,7 @@ if remote path ends with '/'). In this case, client will not connect to host and
 write error message on stderr.
 
 ###SIGINT and SIGTERM
-Since server running in infinite loop, *ftrestd* is able to detect SIGTERM and
+Since server is running in the infinite loop, *ftrestd* is able to detect SIGTERM and
 SIGINT signal and prevent memory leaks.
 
 ##AUTHOR

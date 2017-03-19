@@ -234,6 +234,9 @@ string put_on_file(Request *req, string path) {
         message = "Not a file.";
         closedir(dir);
         return message;
+    } else if( access(path.c_str(), F_OK) != -1 ) {
+        message = "Already exists.";
+        return message;
     }
     ofstream fout(path, ios::binary);
     if (fout.is_open() == false) {
@@ -493,13 +496,13 @@ int main(int argc, char **argv) {
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        cerr << "ERROR: Could not open socket";
+        cerr << "ERROR: Could not open socket" << endl;
         return 1; // TODO
     }
     try {
         args = new Arguments(argc, argv);
     } catch (invalid_argument& e) {
-        cerr << e.what();
+        cerr << e.what() << endl;
         return -1; // TODO
     }
     portno = args->port;
@@ -512,12 +515,12 @@ int main(int argc, char **argv) {
     serv_addr.sin_port        = htons(portno);
 
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        cerr << "ERROR: Unable to bind";
+        cerr << "ERROR: Unable to bind" << endl;
         return 1; // TODO
     }
 
     if (listen(sockfd, 1) < 0) {
-        cerr << "ERROR: Unable to listen";
+        cerr << "ERROR: Unable to listen" << endl;
         return 1;
     }
     string message;
@@ -529,7 +532,7 @@ int main(int argc, char **argv) {
             req->ld_data(sockcomm);
             message = create_response(req, args->root_folder);
             if (send(sockcomm, message.data(), message.size(), 0) < 0) {
-                cerr << "ERROR: Unable to send message.";
+                cerr << "ERROR: Unable to send message." << endl;
                 return 1;
             }
         }
