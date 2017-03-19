@@ -33,7 +33,7 @@ public:
     size_t   file_len     = 0;
     /// Port where is host is binded.
     int      port         = 6677;
-    /// Protocol, usless variable. Client.cpp does not use it.
+    /// Protocol...
     string   protocol     = "http://";
     /// Name of host.
     string   server       = "";
@@ -219,6 +219,7 @@ Arguments::Arguments(int argc, char **argv) {
     if(this->local_path[this->local_path.size()-1] == '/') {
         size_t last_slash;
         string substr = this->remote_path;
+        /* If local path is directory, we need to find out filename */
         while ((last_slash = substr.find("/")) != substr.npos) {
             substr = substr.substr(last_slash+1, substr.size() - last_slash);
         }
@@ -250,7 +251,7 @@ bool Response::set_len(string src) {
     if (idx == src.npos || idx2 == src.npos) {
         return true;
     }
-    idx += 16;
+    idx += 16; // lenght of "Content-Length: "
     try {
         this->content_len = stoi(src.substr(idx, idx2-idx));
     } catch (exception &e) {
@@ -262,7 +263,7 @@ bool Response::set_len(string src) {
 void Response::set_error() {
     size_t idx = 0;
     size_t idx2 = 0;
-    if (this->head.substr(9, 6) != "200 OK") {
+    if (this->head.substr(9, 6) != "200 OK") { // 200 OK starts on index 9 and is 6 chars long
         idx = this->content.find("\"Error\":\"") + 9;
         idx2 = this->content.find("\"", idx);
         this->error = this->content.substr(idx, idx2-idx);
@@ -286,20 +287,25 @@ Response::Response(int fd) {
     unsigned len;
     while ((len = recv(fd, buffer, 256, 0)) > 0) {
         this->byte_read += len;
+        /* Copy data to string, no worry about zero char when using push_back*/
         for (unsigned i = 0; i < len; i++) {
             this->content.push_back(buffer[i]);
         }
+        /* Check if have loaded http head */
         if (this->set_head(this->content) == false) {
             break;
         }
     }
-    if (this->set_len(this->head)) {
-        throw new invalid_argument("ERROR: No Content-Length specified!");
+
+    if (this->set_len(this->head)) { // set content length
+//        throw new invalid_argument("ERROR: No Content-Length specified!");
+        this->content_len = 0; // No Content-Length? so it must be 0
     }
 
     byte_read -= this->content_start;
     this->content = this->content.substr(this->content_start);
 
+    /* Reading rest of socked */
     while (this->byte_read < this->content_len) {
         len = recv(fd, buffer, 256, 0);
         this->byte_read += len;
@@ -307,7 +313,7 @@ Response::Response(int fd) {
             this->content.push_back(buffer[i]);
         }
     }
-    this->set_error();
+    this->set_error(); // seting error message
 }
 /******************************************************************************/
 
@@ -320,8 +326,8 @@ string http_request(Arguments *args) {
     string request = args->command + " " + args->remote_path + args->file_folder + " HTTP/1.1\r\n";
     char buf[128];
     time_t now = time(0);
-    struct tm tm = *gmtime(&now);
-    strftime(buf, 128, "Date: %a, %d %b %Y %H:%M:%S %Z\r\n", &tm);
+    struct tm tm = *gmtime(&now); // GTM date zone
+    strftime(buf, 128, "Date: %a, %d %b %Y %H:%M:%S %Z\r\n", &tm); // Correct date format
     request += buf;
     request += "Accept-Encoding: identity\r\n";
     if (args->command == "GET") {
@@ -335,6 +341,7 @@ string http_request(Arguments *args) {
         request += "Content-Length: " + to_string(args->file_len) + "\r\n";
     }
     request += "\r\n";
+    /* Adding file into message */
     if (args->content != nullptr) {
         for (size_t i = 0; i < args->file_len; i++) {
             request += args->content[0][i];
@@ -344,45 +351,58 @@ string http_request(Arguments *args) {
 }
 
 int main(int argc, char **argv) {
+    /// Variable for storing program settings
     Arguments *args;
+    /// Socket descriptor
     int sockcl;
+    /// Server adress
     struct sockaddr_in serv_addr;
 
+    /* Parse program arguments and read file if it is needed*/
     try {
         args = new Arguments(argc, argv);
     } catch (invalid_argument& e) {
         cerr << e.what();
-        return 1; // TODO
+        return 1;
     }
     catch (exception &e) {
-        cerr << "ERROR: Something bad happend...\n";
-        return 1; // TODO
+        cerr << "ERROR: Something bad happend...";
+        return 1;
     }
-
+    // getting host by its name
     hostent *server = gethostbyname(args->server.c_str());
     if (server == NULL) {
         cerr << "ERROR: Server not found\n";
         delete args;
-        return 1; // TODO
+        return 1;
     }
+
+    // opening socket
     sockcl = socket(AF_INET, SOCK_STREAM, 0);
     if (sockcl <= 0) {
         cerr << "ERROR: Unable to create socket\n";
         delete args;
         return 1; //TODO
     }
+
+    // preparing connection
     in_addr *address = (in_addr *) server->h_addr;
     char *ip_addres  = inet_ntoa(* address);
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = inet_addr(ip_addres);
     serv_addr.sin_port = htons(args->port);
+
+    // connecting
     if (connect(sockcl, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         cerr << "ERROR: Unable to connect\n";
         close(sockcl);
         delete args;
         return 1;
     }
+    // creating http request
     string request = http_request(args);
+
+    // sending message
     if (send(sockcl, request.data(), request.size(), 0) < 0) {
         cerr << "ERROR: Unable to send message\n";
         close(sockcl);
@@ -390,7 +410,10 @@ int main(int argc, char **argv) {
         return 1; // TODO
     }
 
+    // waiting for answer and parsing response
     Response resp(sockcl);
+
+    // informating user about succes/failure
     if (resp.error != "") {
         cerr << resp.error;
     }
@@ -407,6 +430,8 @@ int main(int argc, char **argv) {
             cout << resp.content;
         }
     }
+
+    // preventing memory leaks
     close(sockcl);
     delete args;
     return 0;

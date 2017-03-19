@@ -66,7 +66,7 @@ Following diagnostics might appear on stderr:
 * **Not a file.** - When using get, del or put but *REMOTE_PATH* leads to directory.
 * **File not found.** - When using get, del or put but some file or some of directories in path does not exists.
 * **Unknown error** - Unexpected error on server
-* **ERROR: *description*** - When you entered invalid arguments such as using put but *LOCAL_PATH* leads to directory,
+* **ERROR: *description*** - When you entered invalid arguments such as using port that is unable to bind,
                              using mkd or del on *USER*, etc...
 
 ##EXAMPLE 1
@@ -154,14 +154,16 @@ I had few time for this project, because I didn't expect that 10 points project 
 consume such amount of time. To be honest, this code is one of worst I have ever created
 and program is not effective as it could be, in fact it is very ineffective and
 slow. There are some memory leaks, that I cann't explain. Evan valgrind did not
-recognize where they come from. But I also **think** that I did good job and program
+recognize where they come from and if I put *return 0* as a first line of main function,
+the memory leaks are still there. But I also **think** that I did good job and program
 works as it should be. It was not easy for me and I am glad we had such projects
 in this semester.
 
 ##POSSIBLE EXTENSIONS
 There was some specified extensions in presentation a some on the forum and sometimes
 it wasn't clear what we should do. So I do not know if I made any extensions, but
-I will try to explain my "features".
+I will try to explain my "features". It is possible that none of this is extension,
+but it will explain the way I wrote program too.
 
 ###Protocol
 In *ftrest* user is free to specify which protocol he/she wants to use. Default
@@ -177,6 +179,10 @@ Before *ftrest* tries to connect to host, if user does not do some bad things on
 server, such as using *get*, *put* or *del* command on directory (only detectable
 if remote path ends with '/'). In this case, client will not connect to host and
 write error message on stderr.
+
+###SIGINT and SIGTERM
+Since server running in infinite loop, *ftrestd* is able to detect SIGTERM and
+SIGINT signal and prevent memory leaks.
 
 ##AUTHOR
 Written by Matějka Jiří, xmatej52@stud.fit.vutbr.cz
