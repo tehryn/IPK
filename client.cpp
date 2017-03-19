@@ -415,7 +415,7 @@ int main(int argc, char **argv) {
 
     // informating user about succes/failure
     if (resp.error != "") {
-        cerr << resp.error;
+        cerr << resp.error << endl;
     }
     else {
         if(args->command == "GET" and args->file_folder == "?type=file") {
