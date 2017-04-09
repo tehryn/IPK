@@ -33,3 +33,4 @@ ftrest
 ftrestd
 test
 chat_client
+.fuse*
