@@ -3,12 +3,15 @@
 #include <vector>
 #include <mutex>
 #include <thread>
+#include <chrono>
 
 #include <string.h>
 #include <ctype.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <csignal>
+
 
 enum {
     SOCK = 0,
