@@ -1,6 +1,4 @@
 #include "chat_client.h"
-/** @var mutex vector of mutexes that provide datarace*/
-std::vector<std::mutex *> mutex_vec;
 
 bool parse_arguments(int argc, char **argv, string *user, string *IP) {
     if (argc != 5) {
@@ -21,8 +19,16 @@ bool parse_arguments(int argc, char **argv, string *user, string *IP) {
         return false;
     }
 }
+
+/// Socket descriptor
 int sockfd;
+/// User name
 string user;
+
+/**
+ * Signal handler. Sends last message to server and exit program.
+ * @param signum [description]
+ */
 void quit(int signum) {
     user += " logged out\r\n";
     send(sockfd, user.data(), user.size(), 0);
@@ -55,78 +61,49 @@ int main(int argc, char **argv) {
         close(sockfd);
         return 1;
     }
-
-    mutex_vec.resize(mutex_number); // resize vector of mutexes
-    for(unsigned i = 0; i < mutex_number; i++){
-        mutex *new_mutex = new std::mutex();
-        mutex_vec[i] = new_mutex;
-        (*(mutex_vec[i])).lock();
-    }
-    thread thread_send(send_messages, sockfd, user);
-    thread thread_recv(recv_messages, sockfd);
+    static thread thread_send(send_messages, sockfd, user);
+    static thread thread_recv(recv_messages, sockfd);
     thread_recv.join();
     thread_send.join();
     return 0;
 }
 
+/**
+ * Loads messages from stdin and send them to server.
+ * @param sockfd Socket descriptor
+ * @param user   User name
+ */
 void send_messages(int sockfd, string user) {
     string hello_world   = user + " logged in\r\n";
     string goodbye_world = user + " logged out\r\n";
     string message;
-//    DEBUG_LINE("SENDER: sending hello_world");
 
     if (send(sockfd, hello_world.data(), hello_world.size(), 0) < 0) {
         cerr << "ERROR: Unable to send message to server" << endl;
     }
-//    (*(mutex_vec[SOCK])).unlock();
-//    DEBUG_LINE("SENDER: message sent and SOCK unlocked");
     while(true) {
         cin.clear();
-//        DEBUG_LINE("SENDER: Reading STDIN");
         getline(cin, message);
-//        DEBUG_LINE("SENDER: Read: ", message);
         if (message == "") {
             continue;
         }
         message = user + ": " + message + "\r\n";
-//        DEBUG_LINE("SENDER: Waiting to sent message");
-//        (*(mutex_vec[SOCK])).lock();
-//        DEBUG_LINE("SENDER: Sending message");
         if (send(sockfd, message.data(), message.size(), 0) < 0) {
             cerr << "ERROR: Unable to send message to server" << endl;
         }
-//        DEBUG_LINE("SENDER: Unlocking...");
-//        (*(mutex_vec[SOCK])).unlock();
     }
 
 
 }
+
+/**
+ * Prints messages from server on stdout.
+ * @param sockfd Socket descriptor
+ */
 void recv_messages(int sockfd) {
     char message[256] ={0,};
-//    DEBUG_LINE("RECV: Waiting on 1st lock...");
-//    (*(mutex_vec[SOCK])).lock();
-//    DEBUG_LINE("RECV: Waiting to message");
-//    while (true) {
-//        if (errno == EWOULDBLOCK) {
-//            (*(mutex_vec[SOCK])).unlock();
-//            sleep(1);
-//            (*(mutex_vec[SOCK])).lock();
-//            continue;
-//        }
-//        else if (errno) {
-//            break;
-//        }
-//        DEBUG_LINE("RECV: Here comes the message:");
-        while (recv(sockfd, message, 256, 0)) {
+        while (recv(sockfd, message, 255, 0)) {
             cout << message << flush;
             bzero(message, 256);
         }
-//        DEBUG_LINE("RECV: Unlocking....");
-//        (*(mutex_vec[SOCK])).unlock();
-//        DEBUG_LINE("RECV: Waiting....");
-//        (*(mutex_vec[SOCK])).lock();
-//        DEBUG_LINE("RECV: Reading message");
-//    }
-//    DEBUG_LINE("Out of cycle");
-//    (*(mutex_vec[SOCK])).unlock();
 }
