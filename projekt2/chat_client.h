@@ -1,9 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <mutex>
 #include <thread>
-#include <chrono>
 
 #include <string.h>
 #include <ctype.h>
@@ -11,14 +9,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <csignal>
-
-
-enum {
-    SOCK = 0,
-    STDOUT,
-    STDERR,
-    END
-};
 
 using namespace std;
 template<typename T1>

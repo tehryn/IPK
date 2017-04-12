@@ -9,7 +9,6 @@ chat_client.o: chat_client.cpp
 .PHONY: debug clean
 debug:
 	g++ -Wall -std=c++11 -pedantic -lm -g -Wextra -pedantic -o chat_client chat_client.cpp -DDEBUG -lpthread
-	gcc server.c -o server
 
 clean:
 	rm chat_client.o

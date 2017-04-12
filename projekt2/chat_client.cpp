@@ -22,23 +22,43 @@ bool parse_arguments(int argc, char **argv, string *user, string *IP) {
 
 /// Socket descriptor
 int sockfd;
+
+/// Tells if we sent message "user logged in"
+bool message_sent = false;
+
 /// User name
 string user;
 
+/// Thread for sending messages
+thread *thread_send = NULL;
+
+/// Thread for receiving messages
+thread *thread_recv = NULL;
+
 /**
- * Signal handler. Sends last message to server and exit program.
+ * Signal handler. Sends last message to server, if needed and free allocated
+ * memory.
  * @param signum [description]
  */
 void quit(int signum) {
-    user += " logged out\r\n";
-    send(sockfd, user.data(), user.size(), 0);
+    if (message_sent) {
+        user += " logged out\r\n";
+        send(sockfd, user.data(), user.size(), 0);
+    }
+    if (thread_recv != NULL) {
+        (*thread_recv).detach();
+        delete thread_recv;
+    }
+    if (thread_send != NULL) {
+        (*thread_send).detach();
+        delete thread_send;
+    }
     exit(signum);
 }
 
 int main(int argc, char **argv) {
     signal(SIGTERM, quit);
     signal(SIGINT, quit);
-    const int mutex_number = END - SOCK;
     struct sockaddr_in serv_addr;
     string IP;
     if (parse_arguments(argc, argv, &user, &IP)) {
@@ -61,10 +81,9 @@ int main(int argc, char **argv) {
         close(sockfd);
         return 1;
     }
-    static thread thread_send(send_messages, sockfd, user);
-    static thread thread_recv(recv_messages, sockfd);
-    thread_recv.join();
-    thread_send.join();
+    thread_send = new thread(send_messages, sockfd, user);
+    thread_recv = new thread(recv_messages, sockfd);
+    pause();
     return 0;
 }
 
@@ -81,6 +100,7 @@ void send_messages(int sockfd, string user) {
     if (send(sockfd, hello_world.data(), hello_world.size(), 0) < 0) {
         cerr << "ERROR: Unable to send message to server" << endl;
     }
+    message_sent = true;
     while(true) {
         cin.clear();
         getline(cin, message);
@@ -92,8 +112,6 @@ void send_messages(int sockfd, string user) {
             cerr << "ERROR: Unable to send message to server" << endl;
         }
     }
-
-
 }
 
 /**
