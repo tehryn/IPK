@@ -1,0 +1,42 @@
+\documentclass[a4paper, 10pt]{article}
+\usepackage[left=1.5cm,text={18cm, 25cm},top=2.5cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[czech]{babel}
+\usepackage{setspace}
+\usepackage{times}
+\usepackage{sectsty}
+
+\sectionfont{\fontsize{12}{15}\bfseries}
+\subsectionfont{\fontsize{11}{15}\bfseries}
+
+
+\begin{document}
+    \noindent
+    Dokumentace úlohy do předmětu IPK: Chatovací client 2016/2017 \\*
+    Jméno a příjmení: Jiří Matějka \\*
+    Login: xmatej52
+
+    \section{Zadání, použité funkce a třídy}
+        Úkolem bylo vytvořit program v jazyce C/C++ schopný odesílat a příjmat
+        zprávy na/ze serveru.
+    \section{Postup řešení}
+        \subsection{Zpracování parametrů programu}
+            Parametry (argumenty) programu jsou zpracovány pomocí jednoduché funkce
+            a hodnoty (jméno uživatele a IP adresa serveru) jsou předány odkazem.
+        \subsection{Komunikace se serverem}
+            Hlavní vlákno programu se připojí na server, následně vytvoří 2 vlákna
+            a uspí se. Příjmání a odesílání zpráv zajišťují právě 2 nová vlákna,
+            každé se pohybuje v jiné funkci. Jedno načítá vstup z klávesnice
+            a druhé vlákno příjmá zprávy a vypisuje je na standartní výstup.
+        \subsection{Řešení chybových stavů}
+            Pokud během programu nastane nějaká chyba, například neodeslání zprávy
+            na server, program se neukončí, ale pouze vypíše varování na chybový
+            výstup. Ukončování programu je řešeno pomocí odchycení signálu
+            SIGKILL (ctrl + c) a aby bylo zabráněno chybám typu "memory leaks",
+            jsou vlákna globální proměnou a ukončena pomocí destruktoru. Dále
+            je také ve funkci odeslána poslední zpráva na server "user logged out".
+        \subsection{Testování}
+            Program byl zprvu testován pomocí vlastního serveru,
+            následně na referenčním serveru a po dokončení projektu byl server
+            spuštěn spolu s programem na referenčním virtuálním stroji.
+\end{document}
