@@ -1,11 +1,10 @@
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <vector>
 #include <thread>
 #include <csignal>
 
-#include <string.h>
-#include <ctype.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -33,7 +32,7 @@ void DEBUG_LINE(T1 x, T2 y) {
 }
 
 /// Socket descriptor
-int sockfd;
+int sockfd = -1;
 
 /// Tells if we sent message "user logged in"
 bool message_sent = false;
@@ -92,6 +91,9 @@ void quit(int signum) {
     if (message_sent) {
         user += " logged out\r\n";                 // setting last message
         send(sockfd, user.data(), user.size(), 0); // sending logout info to server
+    }
+    if (sockfd > -1) {
+        close(sockfd);
     }
     exit(signum); // Exiting...
 }
