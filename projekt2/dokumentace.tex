@@ -34,7 +34,8 @@
             výstup. Ukončování programu je řešeno pomocí odchycení signálu
             SIGKILL (ctrl + c) a aby bylo zabráněno chybám typu "memory leaks",
             jsou vlákna globální proměnou a ukončena pomocí destruktoru. Dále
-            je také ve funkci odeslána poslední zpráva na server "user logged out".
+            je také ve funkci ukončující program odeslána poslední zpráva na
+            server: "user logged out".
         \subsection{Testování}
             Program byl zprvu testován pomocí vlastního serveru,
             následně na referenčním serveru a po dokončení projektu byl server

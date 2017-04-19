@@ -12,3 +12,8 @@ debug:
 
 clean:
 	rm chat_client.o
+
+odevzdani:
+	tar -czf xmatej52.tar.gz Makefile chat_client.cpp ipk_chat.pdf
+	mv xmatej52.tar.gz xmatej52.tgz
+
